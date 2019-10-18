@@ -128,7 +128,7 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 			SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER)), psDriverFile);
 
 			ZeroMemory(&driver_file, sizeof(driver_file));
-			strcpy_s(driver_file.psDriverFile, strnlen_s(psDriverFile,MAX_PATH), psDriverFile);
+			strcpy_s(driver_file.psDriverFile, MAX_PATH, psDriverFile);
 
 			tok = strtok(psDriverFile, "\\");
 			do {
@@ -146,7 +146,7 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			}
 
-			strcpy_s(driver_file.psSysName, strnlen_s(psSysName, 256), psSysName);
+			strcpy_s(driver_file.psSysName, 256, psSysName);
 			driver_file.state = INITIALIZED;
 			EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), TRUE);
 			break;
@@ -188,7 +188,8 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 					MB_ICONERROR);
 				break;
 			}
-							  SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Launch"));
+			SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Launch"));
+
 			case STOPED:
 			case INSTALLED:
 			case INITIALIZED:
@@ -626,7 +627,8 @@ BOOL WINAPI RemoveDriver(VOID) {
 	if (!DeleteService(schService)) {
 		switch (GetLastError()) {
 		case ERROR_SERVICE_MARKED_FOR_DELETE:	break;
-		default:								wsprintf(errormsg, TEXT("Couldn't remove driver!\nErrorcode: %d"), GetLastError());
+		default:								
+			wsprintf(errormsg, TEXT("Couldn't remove driver!\nErrorcode: %d"), GetLastError());
 			MessageBox(0, errormsg,
 				TEXT("Launch Driver Error"),
 				MB_ICONERROR);
