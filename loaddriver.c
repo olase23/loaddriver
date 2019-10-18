@@ -6,7 +6,7 @@
 
 #define SECOND_INSTANCE	(WM_APP+100)
 
-BOOL CALLBACK	DlgProc(HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK   DlgProc(HWND, UINT, WPARAM, LPARAM);
 BOOL WINAPI		SetRegKeys(VOID);
 VOID WINAPI		CleanUp(VOID);
 BOOL WINAPI		StopDriver(VOID);
@@ -71,15 +71,15 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 		for (i = 0; DRIVER_TYPE[i] != NULL; i++)
 			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), CB_ADDSTRING, 0, (LPARAM)DRIVER_TYPE[i]);
-		SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), CB_SELECTSTRING, 0, (LPARAM)DRIVER_TYPE[0]);
+			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), CB_SELECTSTRING, 0, (LPARAM)DRIVER_TYPE[0]);
 
 		for (i = 0; DRIVER_START[i] != NULL; i++)
 			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_START)), CB_ADDSTRING, 0, (LPARAM)DRIVER_START[i]);
-		SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_START)), CB_SELECTSTRING, 0, (LPARAM)DRIVER_START[3]);
+			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_START)), CB_SELECTSTRING, 0, (LPARAM)DRIVER_START[3]);
 
 		for (i = 0; ERROR_CONTROL[i] != NULL; i++)
 			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), CB_ADDSTRING, 0, (LPARAM)ERROR_CONTROL[i]);
-		SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), CB_SELECTSTRING, 0, (LPARAM)ERROR_CONTROL[1]);
+			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), CB_SELECTSTRING, 0, (LPARAM)ERROR_CONTROL[1]);
 
 		if (!GetSystemDirectory(psWinSysDir, MAX_PATH)) {
 			MessageBox(0, TEXT("Couldn't determine the system directory"), TEXT("Launch Driver Error"), MB_ICONERROR);
@@ -278,11 +278,14 @@ VOID WINAPI InitialDriver(VOID) {
 	}
 
 	switch (index) {
-	case 0:	driver_file.type = 1;
+	case 0:	
+		driver_file.type = 1;
 		break;
-	case 1: driver_file.type = 2;
+	case 1: 
+		driver_file.type = 2;
 		break;
-	case 2: driver_file.type = 4;
+	case 2: 
+		driver_file.type = 4;
 		break;
 	}
 
@@ -530,18 +533,21 @@ BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
 
 	if (!StartService(schService, 0, NULL)) {
 		switch (GetLastError()) {
-		case ERROR_SERVICE_ALREADY_RUNNING: MessageBox(0, TEXT("Driver is already up and running!"),
-			TEXT("Launch Driver Error"),
-			MB_ICONERROR);
+		case ERROR_SERVICE_ALREADY_RUNNING: 
+			MessageBox(0, TEXT("Driver is already up and running!"),
+				TEXT("Launch Driver Error"),
+				MB_ICONERROR);
 			CloseServiceHandle(schService);
 			return(TRUE);
 
-		case ERROR_SERVICE_DISABLED:		MessageBox(0, TEXT("Driver is disabled!"),
-			TEXT("Launch Driver Error"),
-			MB_ICONERROR);
+		case ERROR_SERVICE_DISABLED:		
+			MessageBox(0, TEXT("Driver is disabled!"),
+				TEXT("Launch Driver Error"),
+				MB_ICONERROR);
 			break;
 
-		default:							wsprintf(errormsg, TEXT("Couldn't start driver!\nErrorcode: %d"), GetLastError());
+		default:							
+			wsprintf(errormsg, TEXT("Couldn't start driver!\nErrorcode: %d"), GetLastError());
 			MessageBox(0, errormsg,
 				TEXT("Launch Driver Error"),
 				MB_ICONERROR);
