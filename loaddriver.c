@@ -128,7 +128,7 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 			SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER)), psDriverFile);
 
 			ZeroMemory(&driver_file, sizeof(driver_file));
-			strcpy(driver_file.psDriverFile, psDriverFile);
+			strcpy_s(driver_file.psDriverFile, strnlen_s(psDriverFile,MAX_PATH), psDriverFile);
 
 			tok = strtok(psDriverFile, "\\");
 			do {
@@ -146,7 +146,7 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 				break;
 			}
 
-			strcpy(driver_file.psSysName, psSysName);
+			strcpy_s(driver_file.psSysName, strnlen_s(psSysName, 256), psSysName);
 			driver_file.state = INITIALIZED;
 			EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), TRUE);
 			break;
@@ -241,7 +241,6 @@ VOID WINAPI CleanUp(VOID) {
 	INT	    iKeepKey = 0;
 	LONG	result = 0;
 	DWORD	errorcode = 0;
-	TCHAR	psSubKey[MAX_PATH];
 
 	if (!driver_file.psDriverFile[0])
 		return;
@@ -385,8 +384,7 @@ BOOL WINAPI SetRegKeys(VOID) {
 	if (result != NO_ERROR)
 		goto error;
 
-	if (driver_file.description[0] != '\0')
-	{
+	if (driver_file.description[0] != '\0') {
 		result = RegSetValueEx(hkey,
 			TEXT("Description"),
 			0,
@@ -397,8 +395,7 @@ BOOL WINAPI SetRegKeys(VOID) {
 			goto error;
 	}
 
-	if (driver_file.display_name[0] != '\0')
-	{
+	if (driver_file.display_name[0] != '\0') {
 		result = RegSetValueEx(hkey,
 			TEXT("DisplayName"),
 			0,
@@ -409,8 +406,7 @@ BOOL WINAPI SetRegKeys(VOID) {
 			goto error;
 	}
 
-	if (driver_file.depend_service[0] != '\0')
-	{
+	if (driver_file.depend_service[0] != '\0') {
 		result = RegSetValueEx(hkey,
 			TEXT("DependOnService"),
 			0,
@@ -421,8 +417,7 @@ BOOL WINAPI SetRegKeys(VOID) {
 			goto error;
 	}
 
-	if (driver_file.depend_group[0] != '\0')
-	{
+	if (driver_file.depend_group[0] != '\0') {
 		result = RegSetValueEx(hkey,
 			TEXT("DependOnGroup"),
 			0,
