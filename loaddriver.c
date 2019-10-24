@@ -5,8 +5,9 @@
 #include "loaddriver.h"
 
 #define SECOND_INSTANCE	(WM_APP+100)
+#define MAX_RANGE       0x7FFF
 
-BOOL CALLBACK   DlgProc(HWND, UINT, WPARAM, LPARAM);
+BOOL CALLBACK	DlgProc(HWND, UINT, WPARAM, LPARAM);
 BOOL WINAPI		SetRegKeys(VOID);
 VOID WINAPI		CleanUp(VOID);
 BOOL WINAPI		StopDriver(VOID);
@@ -17,8 +18,9 @@ BOOL WINAPI		CheckAccess(VOID);
 BOOL WINAPI		CreateDriver(SC_HANDLE);
 BOOL WINAPI		LaunchDriver(VOID);
 BOOL WINAPI		RemoveDriver(VOID);
-SC_HANDLE WINAPI OpenServiceDatabase(VOID);
+SC_HANDLE WINAPI	OpenServiceDatabase(VOID);
 BOOL			IsAdmin(void);
+VOID			UpdateStatusBar(HWND, WORD);
 
 DRIVER_FILE	driver_file;
 HWND		_hdlg;
@@ -50,6 +52,10 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hprevInstance, LPSTR pCmdLine,
 BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 {
 	OPENFILENAME		OpenFileName;
+	WORD				bar_pos;
+	WORD				bar_delta;
+	bar_pos = 0;
+	bar_delta = (MAX_RANGE / 4);
 
 	switch (message) {
 	case SECOND_INSTANCE: {
@@ -158,8 +164,12 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 			switch (driver_file.state) {
 			case STOPED:
 			case INSTALLED:
-				if (!LaunchDriver())
+				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), FALSE);
+				if (!LaunchDriver()) {
+					EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TRUE);
 					break;
+				}
+
 				SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Stop"));
 				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), FALSE);
 				driver_file.state = STARTED;
@@ -189,17 +199,34 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 					MB_ICONERROR);
 				break;
 			}
+			SendMessage(GetDlgItem(hdlg, IDC_PROGRESS), PBM_SETPOS, 0, 0);
+			SendDlgItemMessage(hdlg, IDC_PROGRESS, PBM_SETRANGE, 0, MAKELONG(0, MAX_RANGE));
 			SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Launch"));
 
 			case STOPED:
 			case INSTALLED:
 			case INITIALIZED:
 				InitialDriver();
-				if (!CopyDriver())
-					break;
+				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
+	
+				if (SendMessage(GetDlgItem(_hdlg,
+								(int)MAKEINTRESOURCE(IDC_KEEP_REG_ENTRYS)),
+								BM_GETCHECK,
+								0,
+								0))
+					if (!CopyDriver())
+						break;
+
+				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
+
 				SetRegKeys();
+				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
+
 				driver_file.state = INSTALLED;
+				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), FALSE);
 				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TRUE);
+				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
+
 				break;
 			default:	break;
 			}
@@ -231,12 +258,19 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 					TRUE);
 			break;
 		}
+	
 		}
 		break;
 	}
 	default: return FALSE;
 	}
 	return TRUE;
+}
+
+VOID UpdateStatusBar(HWND hdlg, WORD progress) {
+	if (IsWindow(hdlg))	{
+		SendDlgItemMessage(hdlg, IDC_PROGRESS, PBM_SETPOS, progress, 0);
+	}
 }
 
 VOID WINAPI CleanUp(VOID) {
@@ -252,13 +286,9 @@ VOID WINAPI CleanUp(VOID) {
 		BM_GETCHECK,
 		0,
 		0);
-	if (!iKeepKey) {
-		/**delete all registry keys**/
-
-		//wsprintf(psSubKey,TEXT("%s%s"),DRIVER_REGISTRY_PATH,psSysName);
-
+	if (!iKeepKey)
 		RemoveDriver();
-	}
+	
 
 }
 
@@ -346,6 +376,9 @@ VOID WINAPI InitialDriver(VOID) {
 	}
 }
 
+/*
+Create the necessary registry keys.
+*/
 BOOL WINAPI SetRegKeys(VOID) {
 	HKEY	hkey;
 	LONG	result = 0;
@@ -444,7 +477,9 @@ error:
 	return(FALSE);
 
 }
-
+/*
+	Copy driver file to the specific Windows directory.
+*/
 BOOL WINAPI CopyDriver() {
 	TCHAR	dstpath[MAX_PATH];
 	DWORD	errorcode = 0;
@@ -452,12 +487,12 @@ BOOL WINAPI CopyDriver() {
 
 	wsprintf(dstpath, TEXT("%s\\drivers\\%s.sys"), psWinSysDir, driver_file.psSysName);
 
-	if (!CopyFileExA(driver_file.psDriverFile,
+	if (!strcmp(driver_file.psDriverFile, dstpath))
+		return TRUE;
+
+	if (!CopyFile(driver_file.psDriverFile,
 				dstpath,
-				NULL,
-				NULL,
-				FALSE,
-				COPY_FILE_NO_BUFFERING)) {
+				FALSE)) {
 		errorcode = GetLastError();
 		wsprintf(errormsg, TEXT("Couldn't copy driver file to destination %s \nErrorcode: %d"), dstpath, errorcode);
 		MessageBox(0, errormsg, TEXT("Launch Driver Error"), MB_ICONERROR);
@@ -465,6 +500,10 @@ BOOL WINAPI CopyDriver() {
 	}
 	return TRUE;
 }
+
+/*
+	Create a new entry for this diver in the control manager database.
+*/
 
 BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
 	LONG			error;
@@ -515,6 +554,9 @@ out:
 	return status;
 }
 
+/*
+	Start the driver.
+*/
 BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
 	SC_HANDLE   schService;
 	TCHAR		errormsg[128];
@@ -566,6 +608,9 @@ error_out:
 	return status;
 }
 
+/*
+	Stop the driver.
+*/
 BOOL WINAPI StopDriver(VOID) {
 	SC_HANDLE		SchSCManager;
 	SC_HANDLE       schService;
@@ -688,10 +733,11 @@ BOOL WINAPI CheckAccess(VOID) {
 		return FALSE;
 
 	CloseHandle(hDevice);
+
 	return TRUE;
 }
 
-// establishe a connection to the service control manager... 
+// establish a connection to the service control manager... 
 SC_HANDLE WINAPI OpenServiceDatabase(VOID) {
 	SC_HANDLE	SCManagerHandle;
 	TCHAR		errormsg[128];
@@ -739,31 +785,37 @@ BOOL IsAdmin(void) {
 	UINT x;
 	BOOL bSuccess;
 	
-	if (!OpenThreadToken(GetCurrentThread(), TOKEN_QUERY, TRUE, &hAccessToken)) {
+	if (!OpenThreadToken(GetCurrentThread(), 
+			TOKEN_QUERY, 
+			TRUE, 
+			&hAccessToken)) {
 		if (GetLastError() != ERROR_NO_TOKEN)
 			return FALSE;
 
-		if (!OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &hAccessToken))
+		if (!OpenProcessToken(GetCurrentProcess(), 
+				TOKEN_QUERY, 
+				&hAccessToken))
 			return FALSE;
 	}
 
 	bSuccess = GetTokenInformation(hAccessToken,
-		TokenGroups,
-		InfoBuffer,
-		1024,
-		&dwInfoBufferSize);
+					TokenGroups,
+					InfoBuffer,
+					1024,
+					&dwInfoBufferSize);
 
 	CloseHandle(hAccessToken);
 
 	if (!bSuccess)
 		return FALSE;
 
-	if (!AllocateAndInitializeSid(&siaNtAuthority,
-		2,
-		SECURITY_BUILTIN_DOMAIN_RID,
-		DOMAIN_ALIAS_RID_ADMINS,
-		0, 0, 0, 0, 0, 0,
-		&psidAdministrators))
+	if (!AllocateAndInitializeSid(
+			&siaNtAuthority,
+			2,
+			SECURITY_BUILTIN_DOMAIN_RID,
+			DOMAIN_ALIAS_RID_ADMINS,
+			0, 0, 0, 0, 0, 0,
+			&psidAdministrators))
 		return FALSE;
 
 	bSuccess = FALSE;

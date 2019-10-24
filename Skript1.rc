@@ -1,4 +1,4 @@
-//Microsoft Developer Studio generated resource script.
+// Microsoft Visual C++ generated resource script.
 //
 #include "resource.h"
 
@@ -7,39 +7,33 @@
 //
 // Generated from the TEXTINCLUDE 2 resource.
 //
-//#include <windows.h>
-#include <afxres.h>
+#include "afxres.h"
 
 /////////////////////////////////////////////////////////////////////////////
 #undef APSTUDIO_READONLY_SYMBOLS
 
 /////////////////////////////////////////////////////////////////////////////
-// Deutsch (Deutschland) resources
+// German (Germany) resources
 
 #if !defined(AFX_RESOURCE_DLL) || defined(AFX_TARG_DEU)
-#ifdef _WIN32
 LANGUAGE LANG_GERMAN, SUBLANG_GERMAN
 #pragma code_page(1252)
-#endif //_WIN32
 
 /////////////////////////////////////////////////////////////////////////////
 //
 // Dialog
 //
 
-IDD_MAIN_DIALOG DIALOG DISCARDABLE  0, 0, 445, 201
-STYLE DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
+IDD_MAIN_DIALOG DIALOGEX 0, 0, 445, 201
+STYLE DS_SETFONT | DS_MODALFRAME | WS_POPUP | WS_CAPTION | WS_SYSMENU
 CAPTION "Load Driver"
-FONT 8, "MS Sans Serif"
+FONT 8, "MS Sans Serif", 0, 0, 0x0
 BEGIN
     DEFPUSHBUTTON   "&Install",ID_INSTALL,50,165,50,14
     PUSHBUTTON      "&Launch",ID_LAUNCH,115,165,50,14
-    COMBOBOX        IDC_DRIVER_TYPE,277,20,152,99,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_DRIVER_START,277,40,152,44,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
-    COMBOBOX        IDC_ERROR_CONTROL,277,59,152,74,CBS_DROPDOWNLIST | 
-                    WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DRIVER_TYPE,277,20,152,99,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_DRIVER_START,277,40,152,44,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
+    COMBOBOX        IDC_ERROR_CONTROL,277,59,152,74,CBS_DROPDOWNLIST | WS_VSCROLL | WS_TABSTOP
     LTEXT           "Driver Type:",IDC_STATIC,230,22,40,8
     LTEXT           "Driver Start:",IDC_STATIC,230,42,44,8
     LTEXT           "Error Control:",IDC_STATIC,230,62,44,8
@@ -47,8 +41,7 @@ BEGIN
     LTEXT           "Description:",IDC_STATIC,230,86,44,8
     EDITTEXT        IDC_DISPLAY_NAME,277,106,152,14,ES_AUTOHSCROLL
     LTEXT           "Display Name:",IDC_STATIC,229,108,48,8
-    EDITTEXT        IDC_ON_SERVICE,277,142,152,14,ES_AUTOHSCROLL | 
-                    WS_DISABLED
+    EDITTEXT        IDC_ON_SERVICE,277,142,152,14,ES_AUTOHSCROLL | WS_DISABLED
     EDITTEXT        IDC_ON_GROUP,277,164,152,14,ES_AUTOHSCROLL | WS_DISABLED
     LTEXT           "On Service:",IDC_STATIC,230,145,42,8
     LTEXT           "On Group:",IDC_STATIC,230,166,42,8
@@ -56,17 +49,13 @@ BEGIN
     PUSHBUTTON      "...",IDC_LOAD_FILE,185,37,24,14
     EDITTEXT        IDC_DRIVER,53,19,156,14,ES_AUTOHSCROLL
     LTEXT           "Driver File:",IDC_STATIC,11,22,40,8
-    CONTROL         "Check Driver Access",IDC_CHECK_ACCESS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,53,59,94,10
-    CONTROL         "Keep Registry Entrys",IDC_KEEP_REG_ENTRYS,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,53,74,94,10
-    CONTROL         "Progress1",IDC_PROGRESS,"msctls_progress32",WS_BORDER,
-                    14,130,202,14
+    CONTROL         "check driver access",IDC_CHECK_ACCESS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,59,94,10
+    CONTROL         "keep driver boot save",IDC_KEEP_REG_ENTRYS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,53,74,94,10
+    CONTROL         "Progress1",IDC_PROGRESS,"msctls_progress32",WS_BORDER,14,130,202,14
     LTEXT           "Status:",IDC_STATIC,17,116,23,8
     LTEXT           "",IDC_STAUS,46,117,169,8
     GROUPBOX        "Driver Properties",IDC_STATIC,225,9,210,181
-    CONTROL         "Depences on Service/Group",IDC_DEPENCES,"Button",
-                    BS_AUTOCHECKBOX | WS_TABSTOP,231,129,133,10
+    CONTROL         "Depences on Service/Group",IDC_DEPENCES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,231,129,133,10
 END
 
 
@@ -76,7 +65,7 @@ END
 //
 
 #ifdef APSTUDIO_INVOKED
-GUIDELINES DESIGNINFO DISCARDABLE 
+GUIDELINES DESIGNINFO
 BEGIN
     IDD_MAIN_DIALOG, DIALOG
     BEGIN
@@ -95,18 +84,18 @@ END
 // TEXTINCLUDE
 //
 
-1 TEXTINCLUDE DISCARDABLE 
+1 TEXTINCLUDE 
 BEGIN
     "resource.h\0"
 END
 
-2 TEXTINCLUDE DISCARDABLE 
+2 TEXTINCLUDE 
 BEGIN
     "#include ""afxres.h""\r\n"
     "\0"
 END
 
-3 TEXTINCLUDE DISCARDABLE 
+3 TEXTINCLUDE 
 BEGIN
     "\r\n"
     "\0"
@@ -115,7 +104,6 @@ END
 #endif    // APSTUDIO_INVOKED
 
 
-#ifndef _MAC
 /////////////////////////////////////////////////////////////////////////////
 //
 // Version
@@ -138,18 +126,14 @@ BEGIN
     BEGIN
         BLOCK "040704b0"
         BEGIN
-            VALUE "Comments", "\0"
-            VALUE "CompanyName", "---\0"
-            VALUE "FileDescription", "loaddriver\0"
-            VALUE "FileVersion", "1, 0, 0, 1\0"
-            VALUE "InternalName", "loaddriver\0"
-            VALUE "LegalCopyright", "Copyright © 2002\0"
-            VALUE "LegalTrademarks", "\0"
-            VALUE "OriginalFilename", "loaddriver.exe\0"
-            VALUE "PrivateBuild", "\0"
-            VALUE "ProductName", "--- loaddriver\0"
-            VALUE "ProductVersion", "1, 0, 0, 1\0"
-            VALUE "SpecialBuild", "\0"
+            VALUE "CompanyName", "---"
+            VALUE "FileDescription", "loaddriver"
+            VALUE "FileVersion", "1, 0, 0, 1"
+            VALUE "InternalName", "loaddriver"
+            VALUE "LegalCopyright", "Copyright © 2002"
+            VALUE "OriginalFilename", "loaddriver.exe"
+            VALUE "ProductName", "--- loaddriver"
+            VALUE "ProductVersion", "1, 0, 0, 1"
         END
     END
     BLOCK "VarFileInfo"
@@ -158,9 +142,18 @@ BEGIN
     END
 END
 
-#endif    // !_MAC
 
-#endif    // Deutsch (Deutschland) resources
+/////////////////////////////////////////////////////////////////////////////
+//
+// AFX_DIALOG_LAYOUT
+//
+
+IDD_MAIN_DIALOG AFX_DIALOG_LAYOUT
+BEGIN
+    0
+END
+
+#endif    // German (Germany) resources
 /////////////////////////////////////////////////////////////////////////////
 
 
