@@ -4,18 +4,25 @@ loaddriver.h
 
 #define DRIVER_REGISTRY_PATH	TEXT("SYSTEM\\CurrentControlSet\\Services\\")
 
+// supported machine types
+#define ARCH_X64				0x64
+#define ARCH_I386				0x32
+
 typedef struct _DRIVER_FILE {
 	UINT	start;
 	UINT	type;
 	UINT	size;
 	UINT	state;
 	UINT	errorcontrol;
+	DWORD	last_error;
 	TCHAR	description[256];
 	TCHAR	display_name[256];
 	TCHAR	depend_service[256];
 	TCHAR	depend_group[256];
 	TCHAR	psDriverFile[MAX_PATH];
 	TCHAR	psSysName[256];
+	BOOL	boot_save;
+	DWORD	machine_type;
 }DRIVER_FILE,*LP_DRIVER_FILE;
 
 #define DRIVER_FILE_SIZE sizeof(DRIVER_FILE)
