@@ -1,0 +1,8 @@
+./Debug
+./Release
+*.dsw
+*.ncb
+*.opt
+*.obj
+*.vcxproj*
+

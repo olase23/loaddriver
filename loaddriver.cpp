@@ -571,10 +571,22 @@ BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
 	else {
 		strncpy_s(DriverPath, 
 			MAX_PATH, 
-			driver_file.psSysName, 
+			driver_file.psDriverFile,
 			MAX_PATH);
 	}
+	
+	// first check if the service object is already created
+	
+	schService = OpenService(SchSCManager,
+		driver_file.psSysName,
+		SERVICE_ALL_ACCESS);
 
+	// try to clean up
+	if(schService){
+	
+		DeleteService(schService);
+		CloseServiceHandle(schService);
+	}
 
 	// open Service Control Manager database    
 	schService = CreateService(SchSCManager,          
@@ -594,22 +606,17 @@ BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
 
 	if (schService == NULL) {
 		error = GetLastError();
-		// check if service already exist
-		// if so just leave
-		if (error == ERROR_SERVICE_EXISTS)
-			goto out;
 
 		if (error == ERROR_SERVICE_MARKED_FOR_DELETE) {
 			ControlService(schService, SERVICE_CONTROL_STOP, &serviceStatus);
-			goto out;
 		}
-
-		wsprintf(errormsg, TEXT("Couldn't start driver!\nErrorcode: %d"), error);
-		MessageBox(0, errormsg, TEXT("Launch Driver Error"), MB_ICONERROR);
-		status = FALSE;
+		else {
+			wsprintf(errormsg, TEXT("Couldn't start driver!\nErrorcode: %d"), error);
+			MessageBox(0, errormsg, TEXT("Launch Driver Error"), MB_ICONERROR);
+			status = FALSE;
+		}
 	} 
 
-out:
 	CloseServiceHandle(schService);
 	return status;
 }
@@ -617,7 +624,10 @@ out:
 
 BOOL WINAPI IsDriverRunning(SC_HANDLE SchSCManager) {
 	SC_HANDLE   schService;
+	SERVICE_STATUS_PROCESS ServiceStatusProcess;
+	DWORD		nBufSize;
 	DWORD		error;
+	BOOL		status = TRUE;
 
 	schService = OpenService(SchSCManager,
 		driver_file.psSysName,
@@ -628,16 +638,37 @@ BOOL WINAPI IsDriverRunning(SC_HANDLE SchSCManager) {
 		error = GetLastError();
 		if (error == ERROR_SERVICE_DOES_NOT_EXIST){
 			driver_file.errorcontrol = 0;
-			driver_file.state = STARTED;
+//			if (driver_file.state == STARTED)
+//				driver_file.state = INSTALLED;
 			return FALSE;
 		}
 		else {
 			return FALSE;
 		}
 	}
+
+	if (!QueryServiceStatusEx(schService,
+		SC_STATUS_PROCESS_INFO,
+		(LPBYTE)&ServiceStatusProcess,
+		sizeof(ServiceStatusProcess),
+		&nBufSize)) {
+		
+		status = FALSE;
+		goto err_out;
+	}
+	
+	switch (ServiceStatusProcess.dwCurrentState) {
+		case SERVICE_RUNNING: 
+		case SERVICE_START_PENDING: break;
+		default:
+			status = FALSE;
+			break;
+	}
+
+err_out:
 	CloseServiceHandle(schService);
 
-	return TRUE;
+	return status;
 }
 
 /*
@@ -686,6 +717,8 @@ BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
 				TEXT("Launch Driver Error"),
 				MB_ICONERROR);
 			status = FALSE;
+			
+			DeleteService(schService);
 			goto error_out;
 		}
 		CloseServiceHandle(schService);
