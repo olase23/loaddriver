@@ -3,6 +3,13 @@ loaddriver.h
 */
 
 #define DRIVER_REGISTRY_PATH	TEXT("SYSTEM\\CurrentControlSet\\Services\\")
+#define DLL_NEW_DEV				TEXT("newdev.dll")
+
+#ifdef UNICDE
+#define  DIINSTALLDRIVER		TEXT("DiInstallDriverW")
+#else
+#define  DIINSTALLDRIVER		TEXT("DiInstallDriverA")
+#endif
 
 // supported machine types
 #define ARCH_X64				0x64
@@ -25,14 +32,26 @@ typedef struct _DRIVER_FILE {
 	DWORD	machine_type;
 }DRIVER_FILE,*LP_DRIVER_FILE;
 
+typedef struct _INF_FILE {
+	UINT	state;
+	TCHAR	psInfFile[MAX_PATH];
+}INF_FILE, *PINF_FILE;
+
+
+typedef struct _API_HELPER {
+	HMODULE	hDll;
+	FARPROC	Function;
+} API_HELPER, *PAPI_HELPER;
+
 #define DRIVER_FILE_SIZE sizeof(DRIVER_FILE)
 
-enum _DRIVER_STATES
+static enum _DRIVER_STATES
 {
 	INITIALIZED	  =1,	
 	INSTALLED, 
 	STARTED,
-	STOPED
+	STOPED,
+	UNINSTALLED
 }DRIVER_STATES;
 
 CONST LPCTSTR DRIVER_TYPE[] = {

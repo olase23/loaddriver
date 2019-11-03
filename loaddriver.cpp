@@ -5,37 +5,49 @@
 extern "C" {
 #endif
 
-#include "loaddriver.h"
-
-
-#define SECOND_INSTANCE	(WM_APP+100)
+#define SECOND_INSTANCE	(WM_APP + 100)
 #define MAX_RANGE       0x7FFF
 
-BOOL CALLBACK	DlgProc(HWND, UINT, WPARAM, LPARAM);
-BOOL WINAPI		SetRegKeys(VOID);
-VOID WINAPI		CleanUp(VOID);
-BOOL WINAPI		IsDriverRunning(SC_HANDLE);
-BOOL WINAPI		StopDriver(VOID);
-BOOL WINAPI		StartDriver(SC_HANDLE);
-VOID WINAPI		InitialDriverObj(VOID);
-BOOL WINAPI		CopyDriver(VOID);
-BOOL WINAPI		CheckAccess(VOID);
-BOOL WINAPI		CreateDriver(SC_HANDLE);
-BOOL WINAPI		LaunchDriver(VOID);
-BOOL WINAPI		RemoveDriver(VOID);
+BOOL CALLBACK		DlgProc(HWND, UINT, WPARAM, LPARAM);
+BOOL WINAPI			SetRegKeys(VOID);
+VOID WINAPI			CleanUp(VOID);
+BOOL WINAPI			IsDriverRunning(SC_HANDLE);
+BOOL WINAPI			StopDriver(VOID);
+BOOL WINAPI			StartDriver(SC_HANDLE);
+VOID WINAPI			InitialDriverObj(VOID);
+BOOL WINAPI			CopyDriver(VOID);
+BOOL WINAPI			CheckAccess(VOID);
+BOOL WINAPI			CreateDriver(SC_HANDLE);
+BOOL WINAPI			LaunchDriver(VOID);
+BOOL WINAPI			RemoveDriver(VOID);
 SC_HANDLE WINAPI	OpenServiceDatabase(VOID);
-VOID			UpdateStatusBar(HWND, WORD);
+VOID				UpdateStatusBar(HWND, WORD);
+
 
 extern BOOL			IsAdmin(void);
 extern BOOL WINAPI	GetDriverArchitecture(LPCSTR, PDWORD);
+extern BOOL WINAPI	CheckFileEnding(LPCSTR, PTCHAR);
+extern BOOL WINAPI	InstallDriverViaSetupApi(VOID);
 
-DRIVER_FILE	driver_file;
-HWND		_hdlg;
-TCHAR		psWinSysDir[MAX_PATH];
-TCHAR		psStartDir[4];
-TCHAR		psSysName[MAX_PATH];
 
-INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hprevInstance, LPSTR pCmdLine, int nCmdShow)
+
+DRIVER_FILE		driver_file;
+INF_FILE		inf_file;
+BOOL			sys_file_present = FALSE;
+BOOL			inf_file_present = FALSE;
+HWND			_hdlg;
+TCHAR			psWinSysDir[MAX_PATH];
+TCHAR			psStartDir[4];
+TCHAR			psSysName[MAX_PATH];
+
+/*
+	The entry point for this graphical Windows-based application.
+*/
+INT WINAPI WinMain( HINSTANCE hInstance, 
+					HINSTANCE hprevInstance, 
+					LPSTR pCmdLine, 
+					int nCmdShow
+)
 {
 	HWND parent = FindWindow("#32770", TEXT("Load Driver"));
 	if (IsWindow(parent)) {
@@ -53,20 +65,35 @@ INT WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hprevInstance, LPSTR pCmdLine,
 	}
 
 	memset(&driver_file, 0, DRIVER_FILE_SIZE);
-	return(DialogBox(hInstance, MAKEINTRESOURCE(IDD_MAIN_DIALOG), NULL, DlgProc));
+	return( DialogBox(	hInstance, 
+						MAKEINTRESOURCE(IDD_MAIN_DIALOG), 
+						NULL, 
+						DlgProc));
 }
 
-BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
+/*
+	The main dialog box callback function to process UI messages.
+*/
+
+BOOL CALLBACK DlgProc(	HWND hdlg, 
+						UINT message, 
+						WPARAM wParam, 
+						LPARAM lParam)
 {
 	OPENFILENAME		OpenFileName;
 	WORD				bar_pos;
 	WORD				bar_delta;
+	TCHAR				errormsg[128];
+
 	bar_pos = 0;
 	bar_delta = (MAX_RANGE / 4);
 
 	switch (message) {
 	case SECOND_INSTANCE: {
-		MessageBox(0, TEXT("There is an instance already running!"), TEXT("Launch Driver Error"), MB_ICONERROR);
+		MessageBox(	0, 
+					TEXT("There is an instance already running!"), 
+					TEXT("Launch Driver Error"), 
+					MB_ICONERROR);
 		break;
 	}
 
@@ -83,16 +110,40 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 		InitCommonControls();
 
 		for (i = 0; DRIVER_TYPE[i] != NULL; i++)
-			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), CB_ADDSTRING, 0, (LPARAM)DRIVER_TYPE[i]);
-			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), CB_SELECTSTRING, 0, (LPARAM)DRIVER_TYPE[0]);
+			SendMessage(GetDlgItem(	hdlg, 
+									(int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), 
+									CB_ADDSTRING, 
+									0, 
+									(LPARAM)DRIVER_TYPE[i]);
+			SendMessage(GetDlgItem(	hdlg, 
+									(int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)), 
+									CB_SELECTSTRING, 
+									0, 
+									(LPARAM)DRIVER_TYPE[0]);
 
 		for (i = 0; DRIVER_START[i] != NULL; i++)
-			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_START)), CB_ADDSTRING, 0, (LPARAM)DRIVER_START[i]);
-			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER_START)), CB_SELECTSTRING, 0, (LPARAM)DRIVER_START[3]);
+			SendMessage(GetDlgItem(	hdlg, 
+									(int)MAKEINTRESOURCE(IDC_DRIVER_START)), 
+									CB_ADDSTRING, 
+									0, 
+									(LPARAM)DRIVER_START[i]);
+			SendMessage(GetDlgItem(	hdlg, 
+									(int)MAKEINTRESOURCE(IDC_DRIVER_START)), 
+									CB_SELECTSTRING, 
+									0, 
+									(LPARAM)DRIVER_START[3]);
 
 		for (i = 0; ERROR_CONTROL[i] != NULL; i++)
-			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), CB_ADDSTRING, 0, (LPARAM)ERROR_CONTROL[i]);
-			SendMessage(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), CB_SELECTSTRING, 0, (LPARAM)ERROR_CONTROL[1]);
+			SendMessage(GetDlgItem(	hdlg, 
+									(int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), 
+									CB_ADDSTRING, 
+									0, 
+									(LPARAM)ERROR_CONTROL[i]);
+			SendMessage(GetDlgItem(	hdlg, 
+									(int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)), 
+									CB_SELECTSTRING, 
+									0, 
+									(LPARAM)ERROR_CONTROL[1]);
 
 		if (!GetSystemDirectory(psWinSysDir, MAX_PATH)) {
 			MessageBox(0, TEXT("Couldn't determine the system directory"), TEXT("Launch Driver Error"), MB_ICONERROR);
@@ -103,6 +154,7 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 		EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), FALSE);
 		break;
 	}
+
 
 	case WM_COMMAND: {
 		switch (wParam) {
@@ -122,12 +174,13 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 			
 			ZeroMemory(&OpenFileName, sizeof(OPENFILENAME));
 			psDriverFile[0] = '\0';
+			
 			wsprintf(psStartDir, TEXT("%c:\\"), psWinSysDir[0]);
 
 			OpenFileName.lStructSize = sizeof(OPENFILENAME);
 			OpenFileName.hwndOwner = NULL;
 			OpenFileName.lpstrFile = psDriverFile;
-			OpenFileName.lpstrFilter = TEXT("Device Driver (*.sys)\0*.SYS\0\0");
+			OpenFileName.lpstrFilter = TEXT("Device Driver (*.sys)\0*.SYS\0*.inf\0*.INF\0\0");
 			OpenFileName.lpstrInitialDir = psStartDir;
 			OpenFileName.lpstrFileTitle = TEXT("Please select a File");
 			OpenFileName.nMaxFile = MAX_PATH;
@@ -136,115 +189,259 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 			if (!GetOpenFileName(&OpenFileName)) {
 				lErrMsg = CommDlgExtendedError();
 				if (lErrMsg) {
-					wsprintf(sErrMsg, TEXT("Error %d returned from GetOpenFileName()"), lErrMsg);
-					MessageBox(NULL, sErrMsg, TEXT("OpenDialog"), MB_ICONERROR);
+					wsprintf(sErrMsg, 
+							TEXT("Error %d returned from GetOpenFileName()"), 
+							lErrMsg);
+					MessageBox(	NULL, 
+								sErrMsg, 
+								TEXT("OpenDialog"), 
+								MB_ICONERROR);
 				}
 				break;
 			}
 
-			SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_DRIVER)), psDriverFile);
+			if (CheckFileEnding(psDriverFile, "sys")) {
+			
+				sys_file_present = TRUE;
 
-			ZeroMemory(&driver_file, sizeof(driver_file));
-			strcpy_s(driver_file.psDriverFile, MAX_PATH, psDriverFile);
+				ZeroMemory(&driver_file, sizeof(driver_file));
+				strcpy_s(driver_file.psDriverFile, MAX_PATH, psDriverFile);
 
-			tok = strtok_s(psDriverFile, "\\", &context);
-			do {
-				image = tok;
-				tok = strtok_s(NULL, "\\", &context);
-			} while (tok);
+				tok = strtok_s(psDriverFile, "\\", &context);
+				do {
+					
+					image = tok;
+				
+					tok = strtok_s(NULL, "\\", &context);
+				
+				} while (tok);
 
-			if (image) {
-				strcpy_s(psSysName, MAX_PATH, image);
-				tok = strchr(psSysName, (INT)'.');
-				tok[0] = '\0';
+				if (image) {
+					
+					strcpy_s(psSysName, MAX_PATH, image);
+					
+					tok = strchr(psSysName, (INT)'.');
+					
+					tok[0] = '\0';
+				}
+				else {
+					MessageBox(	0, 
+								TEXT("Couldn't determine the file name!!!"),
+								TEXT("Launch Driver Error"),
+								MB_ICONERROR);
+					break;
+				}
+
+				if (!GetDriverArchitecture(	(LPCSTR) driver_file.psDriverFile,
+											&lpBinaryType)) {
+					errorcode = GetLastError();
+					
+					wsprintf(errormsg,
+							TEXT("Couldn't determine the file arch type!!!\nError: %d"),
+							errorcode);
+					
+					MessageBox(	0,
+								errormsg,
+								TEXT("Launch Driver Error"),
+								MB_ICONERROR);
+					break;
+				}
+
+				if (!lpBinaryType) {
+					MessageBox(	0, 
+								TEXT("Machine architecture of driver file is not supported!"),
+								TEXT("Launch Driver Error"),
+								MB_ICONERROR);
+					break;
+				}
+
+				driver_file.machine_type = lpBinaryType;
+
+				strcpy_s(driver_file.psSysName, 256, psSysName);
+
+				driver_file.state = INITIALIZED;
+
+				EnableWindow(GetDlgItem(hdlg,
+										(int)MAKEINTRESOURCE(ID_INSTALL)),
+										TRUE);
+				
+				SetWindowText(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(IDC_DRIVER)), 
+										driver_file.psDriverFile);
 			}
-			else {
-				MessageBox(0, TEXT("Couldn't determine the file name!!!"), 
-					TEXT("Launch Driver Error"), 
-					MB_ICONERROR);
-				break;
-			}
+			else if (CheckFileEnding(psDriverFile, "inf")) {
+				inf_file_present = TRUE;
 
-			if (!GetDriverArchitecture((LPCSTR) driver_file.psDriverFile, 
-						&lpBinaryType)) {
-				errorcode = GetLastError();
-				wsprintf(errormsg, 
-					TEXT("Couldn't determine the file arch type!!!\nError: %d"), 
-					errorcode);
-				MessageBox(0, 
-					errormsg, 
-					TEXT("Launch Driver Error"), 
-					MB_ICONERROR);
-				break;
+				ZeroMemory(inf_file.psInfFile, 
+						   MAX_PATH);
+
+				strcpy_s(inf_file.psInfFile, 
+						MAX_PATH, 
+						psDriverFile);
+				
+				SetWindowText(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(IDC_DRIVER)),
+										inf_file.psInfFile);
+
+				EnableWindow(GetDlgItem(hdlg,
+										(int)MAKEINTRESOURCE(ID_INSTALL)),
+										TRUE);
+
+			} else {		
+				MessageBox(	0, 
+							TEXT("Please select a *.sys or *.inf file!"),
+							TEXT("Launch Driver Error"),
+							MB_ICONERROR);
 			}
 			
-			if (!lpBinaryType) {
-				MessageBox(0, TEXT("Machine architecture of driver file is not supported!"),
-					TEXT("Launch Driver Error"),
-					MB_ICONERROR);
-				break;
-			}
-
-			driver_file.machine_type = lpBinaryType;
-			
-			strcpy_s(driver_file.psSysName, 256, psSysName);
-			driver_file.state = INITIALIZED;
-			EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), TRUE);
 			break;
 		}
 		case ID_LAUNCH: {
 			INT		check_access = 0;
 
-			SendMessage(GetDlgItem(hdlg, IDC_PROGRESS), PBM_SETPOS, 0, 0);
-			SendDlgItemMessage(hdlg, IDC_PROGRESS, PBM_SETRANGE, 0, MAKELONG(0, MAX_RANGE));
+			SendMessage(GetDlgItem( hdlg, 
+									IDC_PROGRESS), 
+									PBM_SETPOS, 
+									0, 
+									0);
+
+			SendDlgItemMessage( hdlg, 
+								IDC_PROGRESS, 
+								PBM_SETRANGE, 
+								0, 
+								MAKELONG(0, MAX_RANGE));
 
 			switch (driver_file.state) {
 			case STOPED:
 			case INSTALLED:
-				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), FALSE);
+				
+				EnableWindow(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+										FALSE);
+				
 				if (!LaunchDriver()) {
-					EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TRUE);
+					EnableWindow(GetDlgItem(hdlg, 
+											(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+											TRUE);
 					break;
 				}
 
-				SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Stop"));
-				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TRUE);
-				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), FALSE);
+				SetWindowText(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+										TEXT("Stop"));
+				
+				EnableWindow(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+										TRUE);
+				
+				EnableWindow(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_INSTALL)), 
+										FALSE);
+				
 				driver_file.state = STARTED;
 
-				check_access = (INT)SendMessage(GetDlgItem(_hdlg, (int)MAKEINTRESOURCE(IDC_CHECK_ACCESS)), BM_GETCHECK, 0, 0);
+				check_access = (INT)SendMessage(GetDlgItem( 
+												_hdlg, 
+												(int)MAKEINTRESOURCE(IDC_CHECK_ACCESS)), 
+												BM_GETCHECK, 
+												0, 
+												0);
+
 				if (check_access) {
+					
 					if (!CheckAccess())
-						MessageBox(0, TEXT("Couldn't access the driver!!!"), TEXT("Launch Driver Error"), MB_ICONERROR);
+					
+						MessageBox( 0, 
+									TEXT("Couldn't access the driver!!!"), 
+									TEXT("Launch Driver Error"), 
+									MB_ICONERROR);
 				}
 
 				break;
+
 			case STARTED:
+				
 				StopDriver();
-				SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Launch"));
-				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), TRUE);
+
+				SetWindowText(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+										TEXT("Launch"));
+				
+				EnableWindow(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_INSTALL)), 
+										TRUE);
+				
 				driver_file.state = STOPED;
+				
 				break;
 			default:		break;
 			}
 			break;
 		}
 		case ID_INSTALL:
+			
 			switch (driver_file.state) {
-			case STARTED:	  if (!StopDriver()) {
-				MessageBox(0, TEXT("Couldn't stop the driver!!!"),
-					TEXT("Launch Driver Error"),
-					MB_ICONERROR);
-				break;
+			
+			case STARTED:	  
+				if (!StopDriver()) {
+
+					MessageBox(0, 
+								TEXT("Couldn't stop the driver!!!"),
+								TEXT("Launch Driver Error"),
+								MB_ICONERROR);
+				
+					break;
 			}
-			SendMessage(GetDlgItem(hdlg, IDC_PROGRESS), PBM_SETPOS, 0, 0);
-			SendDlgItemMessage(hdlg, IDC_PROGRESS, PBM_SETRANGE, 0, MAKELONG(0, MAX_RANGE));
-			SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TEXT("Launch"));
+			SendMessage(GetDlgItem(	hdlg,
+									IDC_PROGRESS), 
+									PBM_SETPOS, 
+									0, 0);
+
+			SendDlgItemMessage(	hdlg, 
+								IDC_PROGRESS, 
+								PBM_SETRANGE, 
+								0, 
+								MAKELONG(0, MAX_RANGE));
+
+			SetWindowText(GetDlgItem(hdlg, 
+									(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+									TEXT("Launch"));
 
 			case STOPED:
 			case INSTALLED:
 			case INITIALIZED:
+
+				// we have an inf file so use the SetupAPI
+				if (inf_file_present == TRUE) {
+
+					UpdateStatusBar(hdlg, 
+									(bar_delta * ++bar_pos));
+
+					if (!InstallDriverViaSetupApi()) {
+						
+						wsprintf(	errormsg,
+									TEXT("Couldn't install inf file!\nErrorcode: %d"),
+									GetLastError());
+
+						MessageBox(	0,
+									errormsg,
+									TEXT("Launch Driver Error"),
+									MB_ICONERROR);
+
+						SendMessage(GetDlgItem(hdlg,
+									IDC_PROGRESS),
+									PBM_SETPOS, 
+										0, 0);
+					
+						break;
+					}
+					UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
+					break;
+				}
+							
+				
 				InitialDriverObj();
+				
 				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
 	
 				if (SendMessage(GetDlgItem(_hdlg,
@@ -261,8 +458,16 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
 
 				driver_file.state = INSTALLED;
-				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), FALSE);
-				EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_LAUNCH)), TRUE);
+				//SetWindowText(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(ID_INSTALL)), TEXT("Uninstall"));
+				
+				EnableWindow(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_INSTALL)), 
+										FALSE);
+
+				EnableWindow(GetDlgItem(hdlg, 
+										(int)MAKEINTRESOURCE(ID_LAUNCH)), 
+										TRUE);
+				
 				UpdateStatusBar(hdlg, (bar_delta * ++bar_pos));
 
 				break;
@@ -305,12 +510,24 @@ BOOL CALLBACK DlgProc(HWND hdlg, UINT message, WPARAM wParam, LPARAM lParam)
 	return TRUE;
 }
 
+/*
+	Upadte the status bar progress
+ */
 VOID UpdateStatusBar(HWND hdlg, WORD progress) {
 	if (IsWindow(hdlg))	{
-		SendDlgItemMessage(hdlg, IDC_PROGRESS, PBM_SETPOS, progress, 0);
+		
+		SendDlgItemMessage(	hdlg, 
+							IDC_PROGRESS, 
+							PBM_SETPOS, 
+							progress, 
+							0);
 	}
 }
 
+/*
+	Clean everything up 
+	FIXME: Registry key deletion 		
+*/
 VOID WINAPI CleanUp(VOID) {
 	INT	    iKeepKey = 0;
 	LONG	result = 0;
@@ -319,11 +536,13 @@ VOID WINAPI CleanUp(VOID) {
 	if (!driver_file.psDriverFile[0])
 		return;
 
-	iKeepKey = (INT)SendMessage(GetDlgItem(_hdlg,
-		(int)MAKEINTRESOURCE(IDC_KEEP_REG_ENTRYS)),
-		BM_GETCHECK,
-		0,
-		0);
+	iKeepKey = (INT)SendMessage(GetDlgItem(
+									_hdlg,
+									(int)MAKEINTRESOURCE(IDC_KEEP_REG_ENTRYS)),
+									BM_GETCHECK,
+									0,
+									0);
+
 	if (!iKeepKey)
 		RemoveDriver();
 }
@@ -331,16 +550,20 @@ VOID WINAPI CleanUp(VOID) {
 VOID WINAPI InitialDriverObj(VOID) {
 	LRESULT index = 0;
 
-	index = SendMessage(GetDlgItem(_hdlg,
-		(int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)),
-		CB_GETCURSEL,
-		0,
-		0);
+	index = SendMessage(GetDlgItem(
+						_hdlg,
+						(int)MAKEINTRESOURCE(IDC_DRIVER_TYPE)),
+						CB_GETCURSEL,
+						0,
+						0);
+	
 	if (index == CB_ERR) {
-		MessageBox(0,
-			TEXT("Couldn't get the driver type!!!"),
-			TEXT("Launch Driver Error"),
-			MB_ICONERROR);
+
+		MessageBox(	0,
+					TEXT("Couldn't get the driver type!!!"),
+					TEXT("Launch Driver Error"),
+					MB_ICONERROR);
+		
 		return;
 	}
 
@@ -356,59 +579,74 @@ VOID WINAPI InitialDriverObj(VOID) {
 		break;
 	}
 
-	index = SendMessage(GetDlgItem(_hdlg,
-			(int)MAKEINTRESOURCE(IDC_DRIVER_START)),
-			CB_GETCURSEL,
-			0,
-			0);
+	index = SendMessage(GetDlgItem(	
+						_hdlg,
+						(int)MAKEINTRESOURCE(IDC_DRIVER_START)),
+						CB_GETCURSEL,
+						0,
+						0);
+
 	if (index == CB_ERR) {
-		MessageBox(0,
-			TEXT("Couldn't get the start type!!!"),
-			TEXT("Launch Driver Error"),
-			MB_ICONERROR);
+		
+		MessageBox(	0,
+					TEXT("Couldn't get the start type!!!"),
+					TEXT("Launch Driver Error"),
+					MB_ICONERROR);
+		
 		return;
 	}
+
 	driver_file.start = index;
 
-	index = SendMessage(GetDlgItem(_hdlg,
-			(int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)),
-			CB_GETCURSEL,
-			0,
-			0);
+	index = SendMessage(GetDlgItem(	
+						_hdlg,
+						(int)MAKEINTRESOURCE(IDC_ERROR_CONTROL)),
+						CB_GETCURSEL,
+						0,
+						0);
 
 	if (index == CB_ERR) {
-		MessageBox(0,
-			TEXT("Couldn't get the error control!!!"),
-			TEXT("Launch Driver Error"),
-			MB_ICONERROR);
+		
+		MessageBox(	0,
+					TEXT("Couldn't get the error control!!!"),
+					TEXT("Launch Driver Error"),
+					MB_ICONERROR);
+		
 		return;
 	}
 
 	driver_file.errorcontrol = index;
-	GetWindowText(GetDlgItem(_hdlg,
-		(int)MAKEINTRESOURCE(IDC_DESCRIPTION)),
-		driver_file.description,
-		255);
 
-	GetWindowText(GetDlgItem(_hdlg,
-		(int)MAKEINTRESOURCE(IDC_DISPLAY_NAME)),
-		driver_file.display_name,
-		255);
+	GetWindowText(
+		GetDlgItem(	_hdlg,
+		 			(int)MAKEINTRESOURCE(IDC_DESCRIPTION)),
+					driver_file.description,
+					255);
 
-	if (SendMessage(GetDlgItem(_hdlg,
-			(int)MAKEINTRESOURCE(IDC_DEPENCES)),
-			BM_GETCHECK,
-			0,
-			0)) {
-		GetWindowText(GetDlgItem(_hdlg,
-			(int)MAKEINTRESOURCE(IDC_ON_SERVICE)),
-			driver_file.depend_service,
-			255);
+	GetWindowText(GetDlgItem(
+					_hdlg,
+					(int)MAKEINTRESOURCE(IDC_DISPLAY_NAME)),
+					driver_file.display_name,
+					255);
 
-		GetWindowText(GetDlgItem(_hdlg,
-			(int)MAKEINTRESOURCE(IDC_ON_GROUP)),
-			driver_file.depend_group,
-			255);
+	if (SendMessage(GetDlgItem(	
+					_hdlg,
+					(int)MAKEINTRESOURCE(IDC_DEPENCES)),
+					BM_GETCHECK,
+					0,
+					0)) {
+
+		GetWindowText(GetDlgItem(
+					_hdlg,
+					(int)MAKEINTRESOURCE(IDC_ON_SERVICE)),
+					driver_file.depend_service,
+					255);
+
+		GetWindowText(GetDlgItem(
+					_hdlg,
+					(int)MAKEINTRESOURCE(IDC_ON_GROUP)),
+					driver_file.depend_group,
+					255);
 	}
 }
 
@@ -422,79 +660,96 @@ BOOL WINAPI SetRegKeys(VOID) {
 	TCHAR	errormsg[256];
 	TCHAR	psSubKey[MAX_PATH];
 
-	wsprintf(psSubKey, TEXT("%s%s"), DRIVER_REGISTRY_PATH, psSysName);
+	wsprintf(	psSubKey, 
+				TEXT("%s%s"), 
+				DRIVER_REGISTRY_PATH, 
+				psSysName);
 
-	result = RegCreateKey(HKEY_LOCAL_MACHINE, psSubKey, &hkey);
+	result = RegCreateKey(	HKEY_LOCAL_MACHINE, 
+							psSubKey, 
+							&hkey);
+	
 	if (result != NO_ERROR)
 		goto error;
 
-	result = RegSetValueEx(hkey,
-				TEXT("Type"),
-				0,
-				REG_DWORD,
-				(PBYTE)&driver_file.type,
-				sizeof(driver_file.type));
+	result = RegSetValueEx(	hkey,
+							TEXT("Type"),
+							0,
+							REG_DWORD,
+							(PBYTE)&driver_file.type,
+							sizeof(driver_file.type));
+	
 	if (result != NO_ERROR)
 		goto error;
 
-	result = RegSetValueEx(hkey,
-				TEXT("Start"),
-				0,
-				REG_DWORD,
-				(PBYTE)&driver_file.start,
-				sizeof(driver_file.start));
+	result = RegSetValueEx(	hkey,
+							TEXT("Start"),
+							0,
+							REG_DWORD,
+							(PBYTE)&driver_file.start,
+							sizeof(driver_file.start));
+	
 	if (result != NO_ERROR)
 		goto error;
 
-	result = RegSetValueEx(hkey,
-				TEXT("ErrorControl"),
-				0,
-				REG_DWORD,
-				(PBYTE)&driver_file.errorcontrol,
-				sizeof(driver_file.errorcontrol));
+	result = RegSetValueEx(	hkey,
+							TEXT("ErrorControl"),
+							0,
+							REG_DWORD,
+							(PBYTE)&driver_file.errorcontrol,
+							sizeof(driver_file.errorcontrol));
+	
 	if (result != NO_ERROR)
 		goto error;
 
 	if (driver_file.description[0] != '\0') {
-		result = RegSetValueEx(hkey,
-					TEXT("Description"),
-					0,
-					REG_SZ,
-					(PBYTE)&driver_file.description,
-					strlen(driver_file.description));
+		
+		result = RegSetValueEx(	hkey,
+								TEXT("Description"),
+								0,
+								REG_SZ,
+								(PBYTE)&driver_file.description,
+								strlen(driver_file.description));
+		
 		if (result != NO_ERROR)
 			goto error;
 	}
 
 	if (driver_file.display_name[0] != '\0') {
-		result = RegSetValueEx(hkey,
-					TEXT("DisplayName"),
-					0,
-					REG_SZ,
-					(PBYTE)&driver_file.display_name,
-					strlen(driver_file.display_name));
+		
+		result = RegSetValueEx(	hkey,
+								TEXT("DisplayName"),
+								0,
+								REG_SZ,
+								(PBYTE)&driver_file.display_name,
+								strlen(driver_file.display_name));
+		
 		if (result != NO_ERROR)
 			goto error;
 	}
 
 	if (driver_file.depend_service[0] != '\0') {
-		result = RegSetValueEx(hkey,
-					TEXT("DependOnService"),
-					0,
-					REG_SZ,
-					(PBYTE)&driver_file.depend_service,
-					strlen(driver_file.depend_service));
+		
+		result = RegSetValueEx(	hkey,
+								TEXT("DependOnService"),
+								0,
+								REG_SZ,
+								(PBYTE)&driver_file.depend_service,
+								strlen(driver_file.depend_service));
+		
 		if (result != NO_ERROR)
 			goto error;
 	}
 
 	if (driver_file.depend_group[0] != '\0') {
-		result = RegSetValueEx(hkey,
-					TEXT("DependOnGroup"),
-					0,
-					REG_SZ,
-					(PBYTE)&driver_file.depend_group,
-					strlen(driver_file.depend_group));
+		
+		result = RegSetValueEx(	hkey,
+								TEXT("DependOnGroup"),
+								0,
+								REG_SZ,
+								(PBYTE)&driver_file.depend_group,
+								strlen(driver_file.depend_group));
+		
 		if (result != NO_ERROR)
 			goto error;
 	}
@@ -505,10 +760,17 @@ BOOL WINAPI SetRegKeys(VOID) {
 	return(TRUE);
 
 error:
-
 	errorcode = GetLastError();
-	wsprintf(errormsg, TEXT("Couldn't create the registry keys!!!\nErrorcode: %d"), errorcode);
-	MessageBox(0, errormsg, TEXT("Launch Driver Error"), MB_ICONERROR);
+	
+	wsprintf(errormsg, 
+			TEXT("Couldn't create the registry keys!!!\nErrorcode: %d"), 
+			errorcode);
+	
+	MessageBox(	0, 
+				errormsg, 
+				TEXT("Launch Driver Error"), 
+				MB_ICONERROR);
+	
 	RegCloseKey(hkey);
 	return(FALSE);
 
@@ -521,7 +783,10 @@ BOOL WINAPI CopyDriver() {
 	DWORD	errorcode = 0;
 	TCHAR	errormsg[256];
 
-	wsprintf(dstpath, TEXT("%s\\drivers\\%s.sys"), psWinSysDir, driver_file.psSysName);
+	wsprintf(dstpath, 
+			TEXT("%s\\drivers\\%s.sys"), 
+			psWinSysDir, 
+			driver_file.psSysName);
 
 	if (!strcmp(driver_file.psDriverFile, dstpath))
 		return TRUE;
@@ -529,9 +794,19 @@ BOOL WINAPI CopyDriver() {
 	if (!CopyFile(driver_file.psDriverFile,
 				dstpath,
 				FALSE)) {
+		
 		errorcode = GetLastError();
-		wsprintf(errormsg, TEXT("Couldn't copy driver file to destination %s \nErrorcode: %d"), dstpath, errorcode);
-		MessageBox(0, errormsg, TEXT("Launch Driver Error"), MB_ICONERROR);
+		
+		wsprintf(	errormsg, 
+					TEXT("Couldn't copy driver file to destination %s \nErrorcode: %d"), 
+					dstpath, 
+					errorcode);
+		
+		MessageBox(	0, 
+					errormsg, 
+					TEXT("Launch Driver Error"), 
+					MB_ICONERROR);
+		
 		return FALSE;
 	}
 	
@@ -543,7 +818,6 @@ BOOL WINAPI CopyDriver() {
 /*
 	Create a new entry for this diver in the control manager database.
 */
-
 BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
 	LONG			error;
 	SC_HANDLE		schService;
@@ -555,31 +829,32 @@ BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
 	status = TRUE;
 
 	if (driver_file.boot_save) {
+
 		if (driver_file.machine_type == ARCH_X64) {
+
 			wsprintf(DriverPath,
-				TEXT("%s\\SysWOW64\\drivers\\%s.sys"),
-				psWinSysDir,
-				driver_file.psSysName);
-		}
-		else {
+					TEXT("%s\\SysWOW64\\drivers\\%s.sys"),
+					psWinSysDir,
+					driver_file.psSysName);
+
+		} else {
 			wsprintf(DriverPath,
-				TEXT("%s\\drivers\\%s.sys"),
-				psWinSysDir,
-				driver_file.psSysName);
+					TEXT("%s\\drivers\\%s.sys"),
+					psWinSysDir,
+					driver_file.psSysName);
 		}
-	}
-	else {
+	} else {
 		strncpy_s(DriverPath, 
-			MAX_PATH, 
-			driver_file.psDriverFile,
-			MAX_PATH);
+				MAX_PATH, 
+				driver_file.psDriverFile,
+				MAX_PATH);
 	}
 	
 	// first check if the service object is already created
 	
 	schService = OpenService(SchSCManager,
-		driver_file.psSysName,
-		SERVICE_ALL_ACCESS);
+							driver_file.psSysName,
+							SERVICE_ALL_ACCESS);
 
 	// try to clean up
 	if(schService){
@@ -608,20 +883,33 @@ BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
 		error = GetLastError();
 
 		if (error == ERROR_SERVICE_MARKED_FOR_DELETE) {
-			ControlService(schService, SERVICE_CONTROL_STOP, &serviceStatus);
+
+			ControlService(	schService, 
+							SERVICE_CONTROL_STOP, 
+							&serviceStatus);
 		}
 		else {
-			wsprintf(errormsg, TEXT("Couldn't start driver!\nErrorcode: %d"), error);
-			MessageBox(0, errormsg, TEXT("Launch Driver Error"), MB_ICONERROR);
+			wsprintf(errormsg, 
+					TEXT("Couldn't start driver!\nErrorcode: %d"), 
+					error);
+
+			MessageBox(	0, 
+						errormsg, 
+						TEXT("Launch Driver Error"), 
+						MB_ICONERROR);
+
 			status = FALSE;
 		}
 	} 
 
 	CloseServiceHandle(schService);
+
 	return status;
 }
 
-
+/*
+	Checks if the  driver is allready running.
+*/
 BOOL WINAPI IsDriverRunning(SC_HANDLE SchSCManager) {
 	SC_HANDLE   schService;
 	SERVICE_STATUS_PROCESS ServiceStatusProcess;
@@ -630,28 +918,31 @@ BOOL WINAPI IsDriverRunning(SC_HANDLE SchSCManager) {
 	BOOL		status = TRUE;
 
 	schService = OpenService(SchSCManager,
-		driver_file.psSysName,
-		SERVICE_ALL_ACCESS
+							driver_file.psSysName,
+							SERVICE_ALL_ACCESS
 	);
 
 	if (schService == NULL) {
 		error = GetLastError();
-		if (error == ERROR_SERVICE_DOES_NOT_EXIST){
+		
+		if (error == ERROR_SERVICE_DOES_NOT_EXIST) {
+			
 			driver_file.errorcontrol = 0;
+
 //			if (driver_file.state == STARTED)
 //				driver_file.state = INSTALLED;
+
 			return FALSE;
-		}
-		else {
+		} else {
 			return FALSE;
 		}
 	}
 
 	if (!QueryServiceStatusEx(schService,
-		SC_STATUS_PROCESS_INFO,
-		(LPBYTE)&ServiceStatusProcess,
-		sizeof(ServiceStatusProcess),
-		&nBufSize)) {
+							SC_STATUS_PROCESS_INFO,
+							(LPBYTE)&ServiceStatusProcess,
+							sizeof(ServiceStatusProcess),
+							&nBufSize)) {
 		
 		status = FALSE;
 		goto err_out;
@@ -686,8 +977,8 @@ BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
 		return status;
 
 	schService = OpenService(SchSCManager,
-		driver_file.psSysName,
-		SERVICE_ALL_ACCESS
+							driver_file.psSysName,
+							SERVICE_ALL_ACCESS
 	);
 	if (schService == NULL)
 		return FALSE;
@@ -696,26 +987,35 @@ BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
 		error = GetLastError();
 		switch (error) {
 		case ERROR_SERVICE_ALREADY_RUNNING: 
-			MessageBox(0, TEXT("Driver is already up and running!"),
-				TEXT("Launch Driver Error"),
-				MB_ICONERROR);
+			MessageBox(0, 
+						TEXT("Driver is already up and running!"),
+						TEXT("Launch Driver Error"),
+						MB_ICONERROR);
+			
 			CloseServiceHandle(schService);
 			driver_file.state = STARTED;
 			driver_file.last_error = error;
 			return status;
 
 		case ERROR_SERVICE_DISABLED:		
-			MessageBox(0, TEXT("Driver is disabled!"),
-				TEXT("Launch Driver Error"),
-				MB_ICONERROR);
+			MessageBox(0, 
+						TEXT("Driver is disabled!"),
+						TEXT("Launch Driver Error"),
+						MB_ICONERROR);
+			
 			status = FALSE;
 			goto error_out;
 
 		default:							
-			wsprintf(errormsg, TEXT("Couldn't start driver!\nErrorcode: %d"), GetLastError());
-			MessageBox(0, errormsg,
-				TEXT("Launch Driver Error"),
-				MB_ICONERROR);
+			wsprintf(errormsg, 
+					TEXT("Couldn't start driver!\nErrorcode: %d"), 
+					GetLastError());
+			
+			MessageBox(	0, 
+						errormsg,
+						TEXT("Launch Driver Error"),
+						MB_ICONERROR);
+			
 			status = FALSE;
 			
 			DeleteService(schService);
@@ -752,12 +1052,14 @@ BOOL WINAPI StopDriver(VOID) {
 	status = TRUE;
 
 	schService = OpenService(SchSCManager,
-					driver_file.psSysName,
-					SERVICE_ALL_ACCESS);
+							driver_file.psSysName,
+							SERVICE_ALL_ACCESS);
+	
 	if (schService == NULL) {
 		error = GetLastError();
 
 		wsprintf(errormsg, TEXT("ERROR: Couldn't get driver!\nErrorcode: %d"), error);
+		
 		MessageBox(0, errormsg,
 			TEXT("Launch Driver Error"),
 			MB_ICONERROR);
@@ -772,15 +1074,19 @@ BOOL WINAPI StopDriver(VOID) {
 		// is the kernel driver already stopped? 
 		if (error != ERROR_SERVICE_NOT_ACTIVE) {
 			wsprintf(errormsg, TEXT("Couldn't stop driver!\nErrorcode: %d"), error);
+		
 			MessageBox(0, errormsg,
 				TEXT("Launch Driver Error"),
 				MB_ICONERROR);
+			
 			status = FALSE;
+			
 			goto error_out1;
 		}
 	}
 
 	DeleteService(schService);
+	
 	driver_file.state = STOPED;
 
 error_out1:
