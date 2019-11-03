@@ -1,5 +1,5 @@
 //{{NO_DEPENDENCIES}}
-// Microsoft Developer Studio generated include file.
+// Microsoft Visual C++ generated include file.
 // Used by Skript1.rc
 //
 #define IDD_MAIN_DIALOG                 101
@@ -12,6 +12,7 @@
 #define IDC_ON_SERVICE                  1008
 #define IDC_ON_GROUP                    1009
 #define IDC_DRIVER                      1010
+#define IDC_STATIC_OPTIONS              1011
 #define IDC_LOAD_FILE                   1013
 #define ID_LOAD                         1015
 #define ID_LAUNCH                       1015
@@ -20,14 +21,16 @@
 #define IDC_KEEP_REG_ENTRYS             1019
 #define IDC_PROGRESS                    1020
 #define IDC_STAUS                       1021
+#define IDC_STAUS_TXT                   1021
+#define IDC_USE_SETUP_API               1022
 
 // Next default values for new objects
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        103
+#define _APS_NEXT_RESOURCE_VALUE        104
 #define _APS_NEXT_COMMAND_VALUE         40001
-#define _APS_NEXT_CONTROL_VALUE         1003
+#define _APS_NEXT_CONTROL_VALUE         1012
 #define _APS_NEXT_SYMED_VALUE           101
 #endif
 #endif
