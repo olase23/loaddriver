@@ -23,12 +23,11 @@ extern "C" {
 	SC_HANDLE WINAPI	OpenServiceDatabase(VOID);
 	VOID				UpdateStatusBar(HWND, WORD);
 
-
 	extern BOOL			IsAdmin(void);
 	extern BOOL WINAPI	GetDriverArchitecture(LPCSTR, PDWORD);
 	extern BOOL WINAPI	CheckFileEnding(LPCSTR, PTCHAR);
 	extern BOOL WINAPI	InstallDriverViaSetupApi(VOID);
-
+	extern VOID WINAPI	SyncVolumes(VOID);
 
 
 	DRIVER_FILE		driver_file;
@@ -1021,6 +1020,9 @@ extern "C" {
 		if (schService == NULL)
 			return FALSE;
 
+		// make sure all cached file buffers are written down before we start the driver
+		SyncVolumes();
+		
 		if (!StartService(schService, 0, NULL)) {
 			error = GetLastError();
 			switch (error) {
@@ -1141,7 +1143,7 @@ extern "C" {
 	}
 
 	/*
-		This funtion deletes the service
+		This function deletes the service
 	*/
 	BOOL WINAPI RemoveDriver(VOID) {
 		SC_HANDLE	SchSCManager;
@@ -1192,7 +1194,7 @@ extern "C" {
 	}
 
 	/*
-		This funtion trys to access the loaded driver and close the handle.
+		This function trys to access the loaded driver and close the handle.
 	*/
 	BOOL WINAPI CheckAccess(VOID) {
 		TCHAR    DriverName[256];

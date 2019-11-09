@@ -90,8 +90,6 @@ extern "C" {
 		return TRUE;
 	}
 
-
-
 #ifdef __cplusplus
 }
 #endif

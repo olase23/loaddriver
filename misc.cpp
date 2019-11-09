@@ -255,6 +255,36 @@ extern "C" {
 		return status;
 	}
 
+	/*
+		This function flushes all file buffers to the hard drive(s).
+	*/
+	VOID WINAPI SyncVolumes(VOID) {
+		HANDLE	hVolume;
+		TCHAR	szVolume[16];
+		UINT	i;
+
+		for (i = 2; i < 26; i++) {
+			wsprintf(szVolume, TEXT("\\\\.\\%c:\0"), (TCHAR)((TCHAR)i + (TCHAR)'a'));
+			
+			hVolume = CreateFile(
+				szVolume,
+				GENERIC_READ | GENERIC_WRITE,
+				FILE_SHARE_READ | FILE_SHARE_WRITE,
+				NULL,
+				OPEN_EXISTING,
+				0,
+				NULL);
+
+			if (hVolume == INVALID_HANDLE_VALUE) {
+				continue;
+			}
+		
+			FlushFileBuffers(hVolume);
+
+			CloseHandle(hVolume);
+		}
+	}
+
 #ifdef __cplusplus
 }
 #endif
