@@ -55,7 +55,7 @@ BEGIN
     LTEXT           "",IDC_STAUS_TXT,46,127,169,8
     GROUPBOX        "Driver Properties",IDC_STATIC,225,9,210,181
     CONTROL         "Depences on Service/Group",IDC_DEPENCES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,230,129,133,10
-    CONTROL         "install via SetupAPI",IDC_USE_SETUP_API,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,92,94,10
+    CONTROL         "advanced driver checks",IDC_ADV_DRV_CHECKS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,92,94,10
     GROUPBOX        "Open File",IDC_STATIC,9,9,211,43
     GROUPBOX        "Installation Options",IDC_STATIC_OPTIONS,9,54,211,59
     GROUPBOX        "",IDC_STATIC,9,115,211,75

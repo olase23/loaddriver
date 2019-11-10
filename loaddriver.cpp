@@ -28,16 +28,19 @@ extern "C" {
 	extern BOOL WINAPI	CheckFileEnding(LPCSTR, PTCHAR);
 	extern BOOL WINAPI	InstallDriverViaSetupApi(VOID);
 	extern VOID WINAPI	SyncVolumes(VOID);
+	extern BOOL WINAPI	GetImageVersionInfo(LP_DRIVER_FILE);
+	extern BOOL WINAPI	GetWindowVersion();
 
 
-	DRIVER_FILE		driver_file;
-	INF_FILE		inf_file;
-	BOOL			sys_file_present = FALSE;
-	BOOL			inf_file_present = FALSE;
-	HWND			_hdlg;
-	TCHAR			psWinSysDir[MAX_PATH];
-	TCHAR			psStartDir[4];
-	TCHAR			psSysName[MAX_PATH];
+	SYSTEM_INFORMATION	current_system;
+	DRIVER_FILE			driver_file;
+	INF_FILE			inf_file;
+	BOOL				sys_file_present = FALSE;
+	BOOL				inf_file_present = FALSE;
+	HWND				_hdlg;
+	TCHAR				psWinSysDir[MAX_PATH];
+	TCHAR				psStartDir[4];
+	TCHAR				psSysName[MAX_PATH];
 
 	/*
 		The entry point for this graphical Windows-based application.
@@ -62,6 +65,8 @@ extern "C" {
 
 			exit(1);
 		}
+
+		GetWindowVersion();
 
 		memset(&driver_file, 0, DRIVER_FILE_SIZE);
 		return(DialogBox(hInstance,
@@ -249,7 +254,7 @@ extern "C" {
 							MB_ICONERROR);
 						break;
 					}
-
+										
 					if (!GetDriverArchitecture((LPCSTR)driver_file.psDriverFile,
 						&lpBinaryType)) {
 						errorcode = GetLastError();
@@ -265,7 +270,7 @@ extern "C" {
 						break;
 					}
 
-					if (!lpBinaryType) {
+					if (current_system.ArchType != lpBinaryType) {
 						MessageBox(0,
 							TEXT("Machine architecture of driver file is not supported!"),
 							TEXT("Launch Driver Error"),
@@ -279,9 +284,20 @@ extern "C" {
 
 					driver_file.state = INITIALIZED;
 
+					// check if we need detailed infos about the version flags
+					if (SendMessage(GetDlgItem(_hdlg,
+							(int)MAKEINTRESOURCE(
+									IDC_ADV_DRV_CHECKS)),
+							BM_GETCHECK,
+							0, 0)) {
+
+						GetImageVersionInfo(&driver_file);
+
+					}
+
 					EnableWindow(GetDlgItem(hdlg,
-						(int)MAKEINTRESOURCE(ID_INSTALL)),
-						TRUE);
+								(int)MAKEINTRESOURCE(ID_INSTALL)),
+								TRUE);
 
 					SetWindowText(GetDlgItem(hdlg,
 						(int)MAKEINTRESOURCE(IDC_DRIVER)),
@@ -510,27 +526,24 @@ extern "C" {
 
 			case IDC_DEPENCES:
 			{
-				if (IsWindowEnabled(
-					GetDlgItem(hdlg,
-					(int)MAKEINTRESOURCE(IDC_ON_SERVICE))))
+				if (IsWindowEnabled(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ON_SERVICE)))) {
 
-					EnableWindow(GetDlgItem(hdlg,
-					(int)MAKEINTRESOURCE(IDC_ON_SERVICE)),
-						FALSE);
-				else
-					EnableWindow(GetDlgItem(hdlg,
-					(int)MAKEINTRESOURCE(IDC_ON_SERVICE)),
-						TRUE);
+					EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ON_SERVICE)), FALSE);
+				}
+				else {
 
-				if (IsWindowEnabled(GetDlgItem(hdlg,
-					(int)MAKEINTRESOURCE(IDC_ON_GROUP))))
-					EnableWindow(GetDlgItem(hdlg,
-					(int)MAKEINTRESOURCE(IDC_ON_GROUP)),
-						FALSE);
-				else
-					EnableWindow(GetDlgItem(hdlg,
-					(int)MAKEINTRESOURCE(IDC_ON_GROUP)),
-						TRUE);
+					EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ON_SERVICE)), TRUE);
+				}
+				
+				if (IsWindowEnabled(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ON_GROUP)))) {
+					
+					EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ON_GROUP)), FALSE);
+				}
+				else {
+					
+					EnableWindow(GetDlgItem(hdlg, (int)MAKEINTRESOURCE(IDC_ON_GROUP)), TRUE);
+				}
+				
 				break;
 			}
 

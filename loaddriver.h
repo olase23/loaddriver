@@ -3,6 +3,7 @@ loaddriver.h
 */
 
 #define DRIVER_REGISTRY_PATH	TEXT("SYSTEM\\CurrentControlSet\\Services\\")
+#define KDMF_VERSION_PATH		TEXT("SYSTEM\\CurrentControlSet\\Control\\Wdf\\Kmdf\\KmdfLibrary\\Versions\\")
 #define DLL_NEW_DEV				TEXT("newdev.dll")
 
 #ifdef UNICDE
@@ -22,6 +23,11 @@ typedef struct _DRIVER_FILE {
 	UINT	state;
 	UINT	errorcontrol;
 	DWORD	last_error;
+	DWORD	version;
+	DWORD	flags;
+	DWORD	ftype;
+	DWORD	fos;
+	DWORD	fsubtype;
 	TCHAR	description[256];
 	TCHAR	display_name[256];
 	TCHAR	depend_service[256];
@@ -31,6 +37,8 @@ typedef struct _DRIVER_FILE {
 	BOOL	boot_save;
 	DWORD	machine_type;
 }DRIVER_FILE,*LP_DRIVER_FILE;
+
+#define DRIVER_FILE_SIZE sizeof(DRIVER_FILE)
 
 typedef struct _INF_FILE {
 	UINT	state;
@@ -43,7 +51,16 @@ typedef struct _API_HELPER {
 	FARPROC	Function;
 } API_HELPER, *PAPI_HELPER;
 
-#define DRIVER_FILE_SIZE sizeof(DRIVER_FILE)
+typedef struct _SYSTEM_INFORMATION {
+	DWORD	WindowsVersion;
+	DWORD	KdmfVersion;
+	DWORD	WdfVersion;
+	DWORD	ArchType;
+	DWORD	NoneDriverSigning; 
+	DWORD	DriverSigning;
+}SYSTEM_INFORMATION, *LPSYSTEM_INFORMATION;
+
+#define SYSTEM_INFORMATION_SIZE	sizeof(SYSTEM_INFORMATION)
 
 static enum _DRIVER_STATES
 {

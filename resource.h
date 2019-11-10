@@ -23,6 +23,7 @@
 #define IDC_STAUS                       1021
 #define IDC_STAUS_TXT                   1021
 #define IDC_USE_SETUP_API               1022
+#define IDC_ADV_DRV_CHECKS              1022
 
 // Next default values for new objects
 // 

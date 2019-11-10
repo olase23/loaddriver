@@ -4,124 +4,45 @@
 extern "C" {
 #endif
 
-	/*
-		This funtion determines the architecture type of the driver.
-	*/
-	BOOL WINAPI GetDriverArchitecture(LPCSTR psDriverFile, PDWORD lpBinaryType) {
-		BOOL   status;
-		HANDLE f_handle;
-		HANDLE m_handle;
-		DWORD  error;
-		LPVOID image;
-		PIMAGE_NT_HEADERS nt_header;
-
-
-		f_handle = CreateFile(psDriverFile,
-			GENERIC_READ,
-			0, NULL,
-			OPEN_EXISTING,
-			FILE_ATTRIBUTE_NORMAL,
-			NULL);
-
-		if (f_handle == INVALID_HANDLE_VALUE)
-			return FALSE;
-
-		status = TRUE;
-
-		m_handle = CreateFileMapping(f_handle,
-			NULL,
-			PAGE_READONLY,
-			0,
-			0,
-			NULL);
-
-		if (m_handle == NULL) {
-
-			error = GetLastError();
-
-			status = FALSE;
-
-			goto err_out1;
-		}
-
-		image = MapViewOfFile(m_handle,
-			FILE_MAP_READ,
-			0,
-			0,
-			0);
-
-		if (!image) {
-
-			error = GetLastError();
-
-			status = FALSE;
-
-			goto err_out2;
-		}
-
-		// try to find the target machine type
-		__try {
-
-			// check if we have a DOS header
-			if (!((PIMAGE_DOS_HEADER)image)->e_magic == IMAGE_DOS_SIGNATURE) {
-
-				error = ERROR_INVALID_DATA;
-
-				status = FALSE;
-
-				goto err_out3;
-			}
-
-			// get the nt header section
-			nt_header = (PIMAGE_NT_HEADERS)((PBYTE)image + ((PIMAGE_DOS_HEADER)image)->e_lfanew);
-
-			// check PE signature to ensure we have the proper file format
-			if (nt_header->Signature == IMAGE_NT_SIGNATURE) {
-
-				if (nt_header->FileHeader.Machine == IMAGE_FILE_MACHINE_AMD64)
-					*lpBinaryType = ARCH_X64;
-
-				else if (nt_header->FileHeader.Machine == IMAGE_FILE_MACHINE_I386)
-
-					*lpBinaryType = ARCH_I386;
-
-				else
-
-					*lpBinaryType = 0;
-			}
-			else {
-				error = ERROR_INVALID_DATA;
-				status = FALSE;
-			}
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER) {
-
-			error = ERROR_INVALID_DATA;
-
-			status = FALSE;
-		}
-
-	err_out3:
-		UnmapViewOfFile(image);
-
-	err_out2:
-		CloseHandle(m_handle);
-
-	err_out1:
-		CloseHandle(f_handle);
-
-		if (status == FALSE)
-			SetLastError(error);
-
-		return status;
-	}
+	extern SYSTEM_INFORMATION	current_system;
+	typedef BOOL(WINAPI *LD_ISWOW64PROCESS) (HANDLE, PBOOL);
 
 	/*
 		This function determines the current OS version.
 	*/
 	BOOL WINAPI GetWindowVersion() {
 
+		SYSTEM_INFO				SystemInfo;
+		OSVERSIONINFOEX			OsVersionInfo;
+		LD_ISWOW64PROCESS		fnIsWow64Process;
+		DWORDLONG				dwlConditionMask;
+		BOOL					isWow64 = FALSE;
 
+		ZeroMemory(&SystemInfo, sizeof(SYSTEM_INFO));
+
+		GetSystemInfo(&SystemInfo);
+
+		fnIsWow64Process = (LD_ISWOW64PROCESS)GetProcAddress(
+							GetModuleHandle(
+							TEXT("kernel32")),
+							"IsWow64Process");
+
+		if (fnIsWow64Process) {
+
+			if (fnIsWow64Process(GetCurrentProcess(), &isWow64)) {
+
+				if (isWow64)
+					current_system.ArchType = ARCH_X64;
+				else
+					current_system.ArchType = ARCH_I386;
+			}
+
+		}
+
+		// we still not know, so lets get it from the registry
+		if (current_system.ArchType == 0) {
+
+		}
 
 		return TRUE;
 	}
@@ -223,7 +144,7 @@ extern "C" {
 		PCHAR	token = NULL;
 		PCHAR   next = NULL;
 		TCHAR	FilePath[MAX_PATH];
-
+		UINT	i;
 
 		if ((!DriverPath) || (!FileEnding))
 			return status;
@@ -237,7 +158,12 @@ extern "C" {
 				return status;
 
 			do {
-				if (!_tcsnccmp((PTCHAR)_totlower((UINT)token), FileEnding, _tcslen(FileEnding))) {
+				for (i = 0; i < 3; i++) {
+					if (isupper(token[i]))
+						token[i] = (TCHAR)_totlower((UINT)token[i]);
+				}
+				
+				if (!_tcsnccmp(token, FileEnding, _tcslen(FileEnding))) {
 					status = TRUE;
 					break;
 				}
@@ -265,7 +191,7 @@ extern "C" {
 
 		for (i = 2; i < 26; i++) {
 			wsprintf(szVolume, TEXT("\\\\.\\%c:\0"), (TCHAR)((TCHAR)i + (TCHAR)'a'));
-			
+
 			hVolume = CreateFile(
 				szVolume,
 				GENERIC_READ | GENERIC_WRITE,
@@ -278,13 +204,12 @@ extern "C" {
 			if (hVolume == INVALID_HANDLE_VALUE) {
 				continue;
 			}
-		
+
 			FlushFileBuffers(hVolume);
 
 			CloseHandle(hVolume);
 		}
 	}
-
 #ifdef __cplusplus
 }
 #endif
