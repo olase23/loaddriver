@@ -4,212 +4,239 @@
 extern "C" {
 #endif
 
-	extern SYSTEM_INFORMATION	current_system;
-	typedef BOOL(WINAPI *LD_ISWOW64PROCESS) (HANDLE, PBOOL);
+#define REG_STR_SIZE  64
 
-	/*
-		This function determines the current OS version.
-	*/
-	BOOL WINAPI GetWindowVersion() {
+extern SYSTEM_INFORMATION current_system;
+typedef BOOL(WINAPI *LD_ISWOW64PROCESS) (HANDLE, PBOOL);
 
-		SYSTEM_INFO				SystemInfo;
-		OSVERSIONINFOEX			OsVersionInfo;
-		LD_ISWOW64PROCESS		fnIsWow64Process;
-		DWORDLONG				dwlConditionMask;
-		BOOL					isWow64 = FALSE;
+/*
+  This function determines the current installed OS env.
+*/
+VOID WINAPI GetCurrentHostSetup(VOID) {
+  LD_ISWOW64PROCESS fnIsWow64Process;
+  TCHAR RegistryString[REG_STR_SIZE];
+  SYSTEM_INFO SystemInfo;
+  DWORD ValueFromReg;
+  DWORD RegDataType;
+  DWORD RegDataSize;
+  BOOL isWow64 = FALSE;
+  LONG result = 0;
+  HKEY hKey;
 
-		ZeroMemory(&SystemInfo, sizeof(SYSTEM_INFO));
+  ZeroMemory(&SystemInfo, sizeof(SYSTEM_INFO));
+  
+  GetSystemInfo(&SystemInfo);
+  fnIsWow64Process = (LD_ISWOW64PROCESS)GetProcAddress(
+    GetModuleHandle(TEXT("kernel32")),
+   "IsWow64Process");
 
-		GetSystemInfo(&SystemInfo);
+  if (fnIsWow64Process) {
+    if (fnIsWow64Process(GetCurrentProcess(), &isWow64)) {
+     if (isWow64)
+       current_system.ArchType = ARCH_X64;
+    else
+      current_system.ArchType = ARCH_I386;
+    }
+  }
 
-		fnIsWow64Process = (LD_ISWOW64PROCESS)GetProcAddress(
-							GetModuleHandle(
-							TEXT("kernel32")),
-							"IsWow64Process");
+  // we still not know, so lets try to get it from the registry
+  if (current_system.ArchType == 0) {	
+    result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+     HKLM_CURRENT_VERSION,
+     0,
+     KEY_READ,
+     &hKey);
 
-		if (fnIsWow64Process) {
+    if (result == ERROR_SUCCESS) {
+      RegDataSize = sizeof(TCHAR) * REG_STR_SIZE;
+    
+      result = RegQueryValueEx(hKey,
+        PROC_ARCH,
+        NULL,
+        &RegDataType,
+        (PBYTE)&RegistryString,
+        &RegDataSize);
+      if (result == ERROR_SUCCESS) {
+        if(!strcmp(RegistryString,"x86"))
+          current_system.ArchType = ARCH_I386;
+        else
+          current_system.ArchType = ARCH_X64;
+      } else {
+          current_system.ArchType = ARCH_I386;
+      }
+      RegCloseKey(hKey);
+    }
+  }
 
-			if (fnIsWow64Process(GetCurrentProcess(), &isWow64)) {
+  // Try tor figure out what the current driver signing policy is.
+  // If nothing is available in the registry assume none. 	
+  result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
+    NON_DRIVER_SIGN_PATH,
+    0,
+    KEY_READ,
+    &hKey);
 
-				if (isWow64)
-					current_system.ArchType = ARCH_X64;
-				else
-					current_system.ArchType = ARCH_I386;
-			}
+  if (result == ERROR_SUCCESS) {
+    RegDataSize = sizeof(DWORD);
+    result = RegQueryValueEx(hKey,
+      DRIVER_SIGN_POLICY,
+      NULL,
+      &RegDataType,
+      (PBYTE)&ValueFromReg,
+      &RegDataSize);
+    if (result == ERROR_SUCCESS)
+      current_system.NonDriverSigning = (DWORD)*((PBYTE)&ValueFromReg);
+    else
+      current_system.NonDriverSigning = DRIVER_SIGNING_NONE;
+  	RegCloseKey(hKey);
+  }
+}
 
-		}
+/*
+  This funtion trys to get a API function pointer.
+*/
+BOOL WINAPI GetFuntionPointer(LPCSTR DllName, 
+  LPCSTR FuntionName,
+  PAPI_HELPER ApiHelper) {
 
-		// we still not know, so lets get it from the registry
-		if (current_system.ArchType == 0) {
+  if (!DllName || !FuntionName)
+    return FALSE;
 
-		}
+  ApiHelper->hDll = LoadLibrary(DllName);
+  if (ApiHelper->hDll == NULL)
+    return FALSE;
 
-		return TRUE;
-	}
+  ApiHelper->Function = GetProcAddress(ApiHelper->hDll, FuntionName);
 
-	/*
-		This funtion trys to get a API function pointer.
-	*/
-	BOOL WINAPI GetFuntionPointer(LPCSTR DllName,
-		LPCSTR FuntionName,
-		PAPI_HELPER ApiHelper) {
+  if (!ApiHelper->Function)
+    return FALSE;
+  return TRUE;
+}
 
-		if (!DllName || !FuntionName)
-			return FALSE;
+/*
+  This funtion checks if the current user has administrator priviledges.
+*/
+BOOL IsAdmin(void) {
+  HANDLE hAccessToken;
+  UCHAR InfoBuffer[1024];
+  PTOKEN_GROUPS ptgGroups = (PTOKEN_GROUPS)InfoBuffer;
+  DWORD dwInfoBufferSize;
+  PSID psidAdministrators;
+  SID_IDENTIFIER_AUTHORITY siaNtAuthority = SECURITY_NT_AUTHORITY;
+  UINT x;
+  BOOL bSuccess;
 
-		ApiHelper->hDll = LoadLibrary(DllName);
+  if (!OpenThreadToken(GetCurrentThread(),
+    TOKEN_QUERY,
+    TRUE,
+    &hAccessToken)) {
+      if (GetLastError() != ERROR_NO_TOKEN)
+        return FALSE;
 
-		if (ApiHelper->hDll == NULL)
-			return FALSE;
+      if (!OpenProcessToken(GetCurrentProcess(),
+        TOKEN_QUERY,
+        &hAccessToken))
+        return FALSE;
+    }
 
-		ApiHelper->Function = GetProcAddress(ApiHelper->hDll, FuntionName);
+  bSuccess = GetTokenInformation(hAccessToken,
+    TokenGroups,
+    InfoBuffer,
+    1024,
+    &dwInfoBufferSize);
+  CloseHandle(hAccessToken);
 
-		if (!ApiHelper->Function)
-			return FALSE;
+  if (!bSuccess)
+    return FALSE;
 
-		return TRUE;
-	}
+  if (!AllocateAndInitializeSid(&siaNtAuthority,
+    2,
+    SECURITY_BUILTIN_DOMAIN_RID,
+    DOMAIN_ALIAS_RID_ADMINS,
+    0,
+    0,
+    0,
+    0,
+    0,
+    0,
+    &psidAdministrators))
+    return FALSE;
 
-	/*
-		This funtion checks the administrator priviledge of the cureent user.
-	*/
-	BOOL IsAdmin(void) {
-		HANDLE hAccessToken;
-		UCHAR InfoBuffer[1024];
-		PTOKEN_GROUPS ptgGroups = (PTOKEN_GROUPS)InfoBuffer;
-		DWORD dwInfoBufferSize;
-		PSID psidAdministrators;
-		SID_IDENTIFIER_AUTHORITY siaNtAuthority = SECURITY_NT_AUTHORITY;
-		UINT x;
-		BOOL bSuccess;
+  bSuccess = FALSE;
 
-		if (!OpenThreadToken(GetCurrentThread(),
-			TOKEN_QUERY,
-			TRUE,
-			&hAccessToken)) {
+  for (x = 0; x < ptgGroups->GroupCount; x++) {
+    if (EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid)) {
+      bSuccess = TRUE;
+      break;
+    }
+  }
 
-			if (GetLastError() != ERROR_NO_TOKEN)
-				return FALSE;
+  FreeSid(psidAdministrators);
+  return bSuccess;
+}
 
-			if (!OpenProcessToken(GetCurrentProcess(),
-				TOKEN_QUERY,
-				&hAccessToken))
-				return FALSE;
-		}
+/*
+  This file trys to figure out if we have a sys or inf file.
+*/
+BOOL WINAPI CheckFileEnding(LPCSTR DriverPath, PTCHAR FileEnding) {
+  BOOL	status = FALSE;
+  PCHAR	token = NULL;
+  PCHAR   next = NULL;
+  TCHAR	FilePath[MAX_PATH];
+  UINT	i;
 
-		bSuccess = GetTokenInformation(hAccessToken,
-			TokenGroups,
-			InfoBuffer,
-			1024,
-			&dwInfoBufferSize);
+  if ((!DriverPath) || (!FileEnding))
+    return status;
 
-		CloseHandle(hAccessToken);
+  __try {
+    strcpy_s(FilePath, MAX_PATH, DriverPath);
+    token = strtok_s(FilePath, ".", &next);
+    if (!token)
+      return status;
 
-		if (!bSuccess)
-			return FALSE;
+    do {
+      for (i = 0; i < 3; i++) {
+        if (isupper(token[i]))
+          token[i] = (TCHAR)_totlower((UINT)token[i]);
+      }
+      if (!_tcsnccmp(token, FileEnding, _tcslen(FileEnding))) {
+        status = TRUE;
+        break;
+      }
+      token = strtok_s(NULL, ".", &next);
+      if (!token)
+        return status;
+  	} while (token != NULL);
+  }
+  __except (EXCEPTION_EXECUTE_HANDLER) {}
+  return status;
+}
 
-		if (!AllocateAndInitializeSid(&siaNtAuthority,
-			2,
-			SECURITY_BUILTIN_DOMAIN_RID,
-			DOMAIN_ALIAS_RID_ADMINS,
-			0,
-			0,
-			0,
-			0,
-			0,
-			0,
-			&psidAdministrators))
-			return FALSE;
+/*
+  This function flushes all file buffers to the hard drive(s).
+*/
+VOID WINAPI SyncVolumes(VOID) {
+  HANDLE	hVolume;
+  TCHAR	szVolume[16];
+  UINT	i;
 
-		bSuccess = FALSE;
+  for (i = 2; i < 26; i++) {
+    wsprintf(szVolume, TEXT("\\\\.\\%c:\0"), (TCHAR)((TCHAR)i + (TCHAR)'a'));
+    hVolume = CreateFile(
+      szVolume,
+      GENERIC_READ | GENERIC_WRITE,
+      FILE_SHARE_READ | FILE_SHARE_WRITE,
+      NULL,
+      OPEN_EXISTING,
+      0,
+      NULL);
+    if (hVolume == INVALID_HANDLE_VALUE) 
+      continue;
 
-		for (x = 0; x < ptgGroups->GroupCount; x++) {
-			if (EqualSid(psidAdministrators, ptgGroups->Groups[x].Sid)) {
-
-				bSuccess = TRUE;
-
-				break;
-			}
-		}
-
-		FreeSid(psidAdministrators);
-		return bSuccess;
-	}
-
-	/*
-		This file trys to figure out if we have a sys or inf file.
-	*/
-	BOOL WINAPI CheckFileEnding(LPCSTR DriverPath, PTCHAR FileEnding) {
-		BOOL	status = FALSE;
-		PCHAR	token = NULL;
-		PCHAR   next = NULL;
-		TCHAR	FilePath[MAX_PATH];
-		UINT	i;
-
-		if ((!DriverPath) || (!FileEnding))
-			return status;
-
-		__try {
-
-			strcpy_s(FilePath, MAX_PATH, DriverPath);
-
-			token = strtok_s(FilePath, ".", &next);
-			if (!token)
-				return status;
-
-			do {
-				for (i = 0; i < 3; i++) {
-					if (isupper(token[i]))
-						token[i] = (TCHAR)_totlower((UINT)token[i]);
-				}
-				
-				if (!_tcsnccmp(token, FileEnding, _tcslen(FileEnding))) {
-					status = TRUE;
-					break;
-				}
-
-				token = strtok_s(NULL, ".", &next);
-				if (!token)
-					return status;
-
-			} while (token != NULL);
-		}
-		__except (EXCEPTION_EXECUTE_HANDLER) {
-
-		}
-
-		return status;
-	}
-
-	/*
-		This function flushes all file buffers to the hard drive(s).
-	*/
-	VOID WINAPI SyncVolumes(VOID) {
-		HANDLE	hVolume;
-		TCHAR	szVolume[16];
-		UINT	i;
-
-		for (i = 2; i < 26; i++) {
-			wsprintf(szVolume, TEXT("\\\\.\\%c:\0"), (TCHAR)((TCHAR)i + (TCHAR)'a'));
-
-			hVolume = CreateFile(
-				szVolume,
-				GENERIC_READ | GENERIC_WRITE,
-				FILE_SHARE_READ | FILE_SHARE_WRITE,
-				NULL,
-				OPEN_EXISTING,
-				0,
-				NULL);
-
-			if (hVolume == INVALID_HANDLE_VALUE) {
-				continue;
-			}
-
-			FlushFileBuffers(hVolume);
-
-			CloseHandle(hVolume);
-		}
-	}
+    FlushFileBuffers(hVolume);
+    CloseHandle(hVolume);
+  }
+}
 #ifdef __cplusplus
 }
 #endif

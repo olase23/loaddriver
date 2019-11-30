@@ -49,16 +49,17 @@ BEGIN
     EDITTEXT        IDC_DRIVER,49,19,160,14,ES_AUTOHSCROLL
     LTEXT           "Load File:",IDC_STATIC,16,22,31,8
     CONTROL         "check driver access",IDC_CHECK_ACCESS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,66,94,10
-    CONTROL         "keep driver boot save",IDC_KEEP_REG_ENTRYS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,79,94,10
+    CONTROL         "keep driver boot save",IDC_KEEP_REG_ENTRYS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,80,94,10
     CONTROL         "Progress1",IDC_PROGRESS,"msctls_progress32",WS_BORDER,14,140,202,14
     LTEXT           "Status:",IDC_STATIC,17,126,23,8
     LTEXT           "",IDC_STAUS_TXT,46,127,169,8
     GROUPBOX        "Driver Properties",IDC_STATIC,225,9,210,181
     CONTROL         "Depences on Service/Group",IDC_DEPENCES,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,230,129,133,10
-    CONTROL         "advanced driver checks",IDC_ADV_DRV_CHECKS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,92,94,10
+    CONTROL         "advanced driver checks",IDC_ADV_DRV_CHECKS,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,18,94,94,10
     GROUPBOX        "Open File",IDC_STATIC,9,9,211,43
-    GROUPBOX        "Installation Options",IDC_STATIC_OPTIONS,9,54,211,59
+    GROUPBOX        "Installation Options",IDC_STATIC_OPTIONS,9,53,211,63
     GROUPBOX        "",IDC_STATIC,9,115,211,75
+    CONTROL         "check driver signature",IDC_DRV_SIGN,"Button",BS_AUTOCHECKBOX | WS_TABSTOP,128,66,85,10
 END
 
 
