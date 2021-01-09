@@ -31,6 +31,7 @@ extern VOID WINAPI SyncVolumes(VOID);
 extern BOOL WINAPI GetImageVersionInfo(LP_DRIVER_FILE);
 extern VOID WINAPI GetCurrentHostSetup(VOID);
 extern BOOL WINAPI VerifyDriverSignatur(LP_DRIVER_FILE);
+extern VOID WINAPI ShowErrorMessage(DWORD, LPSTR, LPSTR);
 
 SYSTEM_INFORMATION current_system;
 DRIVER_FILE driver_file;
@@ -173,11 +174,11 @@ BOOL CALLBACK DlgProc(HWND hdlg,
       break;
     case IDC_LOAD_FILE: {
       LONG	lErrMsg = 0;
-      DWORD   lpBinaryType = 0;
+      DWORD lpBinaryType = 0;
       DWORD	errorcode = 0;
       PCHAR	tok = NULL;
       PCHAR	image = NULL;
-      PCHAR   context = NULL;
+      PCHAR context = NULL;
       TCHAR	psDriverFile[MAX_PATH];
       TCHAR	errormsg[256];
       TCHAR	sErrMsg[256];
@@ -284,7 +285,7 @@ BOOL CALLBACK DlgProc(HWND hdlg,
                else
                  goto skip_sign_check;
              } else if (driver_file.flags & DRV_SIGNATURE_ERROR) {
-               sprintf(errormsg, TEXT("Could not determine driver signature."));
+               wsprintf(errormsg, TEXT("Could not determine driver signature."));
              }
              MessageBox(0,
                errormsg,
@@ -629,7 +630,6 @@ BOOL WINAPI SetRegKeys(VOID) {
   HKEY	hkey;
   LONG	result = 0;
   DWORD	errorcode = 0;
-  TCHAR	errormsg[256];
   TCHAR	psSubKey[MAX_PATH];
 
   wsprintf(psSubKey,
@@ -722,15 +722,9 @@ BOOL WINAPI SetRegKeys(VOID) {
   return(TRUE);
 
 error:
-  errorcode = GetLastError();
-  wsprintf(errormsg,
-    TEXT("Could not create the registry keys!!!\nErrorcode: %d"),
-    errorcode);
-  MessageBox(0,
-    errormsg,
-    TEXT("Launch Driver Error"),
-    MB_ICONERROR);
-
+  ShowErrorMessage(GetLastError(),
+    TEXT("Could not create registry entrys!"),
+    TEXT("Launch Driver Error"));
   RegCloseKey(hkey);
   return(FALSE);
 }
@@ -740,7 +734,6 @@ error:
 BOOL WINAPI CopyDriver() {
   TCHAR	dstpath[MAX_PATH];
   DWORD	errorcode = 0;
-  TCHAR	errormsg[256];
 
   wsprintf(dstpath,
     TEXT("%s\\drivers\\%s.sys"),
@@ -753,15 +746,9 @@ BOOL WINAPI CopyDriver() {
   if (!CopyFile(driver_file.psDriverFile,
     dstpath,
     FALSE)) {
-  	errorcode = GetLastError();
-    wsprintf(errormsg,
-      TEXT("Could not copy driver file to destination %s \nErrorcode: %d"),
-      dstpath,
-      errorcode);
-    MessageBox(0,
-      errormsg,
-      TEXT("Launch Driver Error"),
-      MB_ICONERROR);
+    ShowErrorMessage(GetLastError(),
+      TEXT("Could not copy driver file to destination!"),
+      TEXT("Launch Driver Error"));
     return FALSE;
   }
 
@@ -776,7 +763,6 @@ BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
   LONG  	error;
   SC_HANDLE  schService;
   SERVICE_STATUS  serviceStatus;
-  TCHAR  	errormsg[128];
   TCHAR  	DriverPath[MAX_PATH];
   BOOL  	status;
 
@@ -834,13 +820,9 @@ BOOL WINAPI CreateDriver(SC_HANDLE SchSCManager) {
       SERVICE_CONTROL_STOP,
       &serviceStatus);
   	} else {
-      wsprintf(errormsg,
-        TEXT("Could not start driver!\nErrorcode: %d"),
-        error);
-      MessageBox(0,
-        errormsg,
-        TEXT("Launch Driver Error"),
-        MB_ICONERROR);
+      ShowErrorMessage(GetLastError(),
+        TEXT("Could not create service!"),
+        TEXT("Launch Driver Error"));
       status = FALSE;
   	}
   }
@@ -902,10 +884,9 @@ err_out:
   Start the driver.
 */
 BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
-  SC_HANDLE   schService;
-  TCHAR  errormsg[128];
+  SC_HANDLE schService;
   BOOL  status;
-  DWORD  error;
+  DWORD error;
 
   status = TRUE;
 
@@ -942,14 +923,11 @@ BOOL WINAPI StartDriver(SC_HANDLE SchSCManager) {
         MB_ICONERROR);
       status = FALSE;
       goto error_out;
+
     default:
-      wsprintf(errormsg,
-        TEXT("Could not start driver!\nErrorcode: %d"),
-        GetLastError());
-      MessageBox(0,
-        errormsg,
-        TEXT("Launch Driver Error"),
-        MB_ICONERROR);
+      ShowErrorMessage(GetLastError(),
+        TEXT("Could not start driver!"),
+        TEXT("Launch Driver Error"));
       status = FALSE;
       DeleteService(schService);
       goto error_out;
@@ -970,7 +948,6 @@ BOOL WINAPI StopDriver(VOID) {
   SC_HANDLE  SchSCManager;
   SC_HANDLE       schService;
   SERVICE_STATUS  serviceStatus;
-  TCHAR  	errormsg[128];
   DWORD  	error;
   BOOL  	status;
 
@@ -988,11 +965,9 @@ BOOL WINAPI StopDriver(VOID) {
     SERVICE_ALL_ACCESS);
 
   if (schService == NULL) {
-    error = GetLastError();
-    wsprintf(errormsg, TEXT("ERROR: Could not get driver!\nErrorcode: %d"), error);
-    MessageBox(0, errormsg,
-      TEXT("Launch Driver Error"),
-      MB_ICONERROR);
+    ShowErrorMessage(GetLastError(),
+        TEXT("Could not get service handle!"),
+        TEXT("Launch Driver Error"));
     status = FALSE;
     goto error_out2;
   }
@@ -1001,10 +976,9 @@ BOOL WINAPI StopDriver(VOID) {
     error = GetLastError();
     // when the driver is not allready stopped we have a problem
     if (error != ERROR_SERVICE_NOT_ACTIVE) {
-      wsprintf(errormsg, TEXT("Could not stop driver!\nErrorcode: %d"), error);
-      MessageBox(0, errormsg,
-        TEXT("Launch Driver Error"),
-        MB_ICONERROR);
+      ShowErrorMessage(GetLastError(),
+        TEXT("Could not stop driver!\nErrorcode: %d"),
+        TEXT("Launch Driver Error"));
       status = FALSE;
       goto error_out1;
   	}
@@ -1026,7 +1000,6 @@ error_out2:
 BOOL WINAPI RemoveDriver(VOID) {
   SC_HANDLE	SchSCManager;
   SC_HANDLE	schService;
-  TCHAR errormsg[128];
   BOOL result;
 
   if (!StopDriver())
@@ -1048,13 +1021,9 @@ BOOL WINAPI RemoveDriver(VOID) {
     switch (GetLastError()) {
     case ERROR_SERVICE_MARKED_FOR_DELETE:	break;
     default:
-      wsprintf(errormsg,
+      ShowErrorMessage(GetLastError(),
         TEXT("Could not remove driver!\nErrorcode: %d"),
-        GetLastError());
-      MessageBox(0,
-        errormsg,
-        TEXT("Launch Driver Error"),
-        MB_ICONERROR);
+        TEXT("Launch Driver Error"));
       result = FALSE;
   	}
   }
@@ -1096,20 +1065,15 @@ BOOL WINAPI CheckAccess(VOID) {
 */
 SC_HANDLE WINAPI OpenServiceDatabase(VOID) {
   SC_HANDLE	SCManagerHandle;
-  TCHAR  errormsg[128];
 
   SCManagerHandle = OpenSCManager(NULL,
     NULL,
     SC_MANAGER_ALL_ACCESS);
 
   if (!SCManagerHandle) {
-    wsprintf(errormsg,
-      TEXT("Could not open the Service Manager!\nErrorcode: %d"),
-      GetLastError());
-    MessageBox(0,
-      errormsg,
-      TEXT("Launch Driver Error"),
-      MB_ICONERROR);
+    ShowErrorMessage(GetLastError(),
+      TEXT("Could not open the Service Manager!"),
+      TEXT("Launch Driver Error"));
   	return NULL;
   }
   return SCManagerHandle;
