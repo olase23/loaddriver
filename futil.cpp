@@ -182,9 +182,14 @@ BOOL WINAPI	VerifyDriverSignatur(LP_DRIVER_FILE driver_file) {
 #ifdef UNICODE
   WintrustFileInfo.pcwszFilePath = (LPCWSTR)driver_file->psDriverFile;
 #else
-  MultiByteToWideChar(CP_ACP, 0, driver_file->psDriverFile, -1, UnicodeKey, sizeof(WCHAR) * MAX_PATH);
+  MultiByteToWideChar(CP_ACP,
+    0,
+    driver_file->psDriverFile,
+    -1,
+    UnicodeKey,
+    sizeof(WCHAR) * MAX_PATH);
   WintrustFileInfo.pcwszFilePath = UnicodeKey;
-#endif 
+#endif
 
   WintrustFileInfo.hFile = NULL;
   WintrustFileInfo.pgKnownSubject = NULL;
