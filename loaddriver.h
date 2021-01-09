@@ -33,10 +33,12 @@ loaddriver.h
 
 #define CERT_E_UNTRUSTED_ROOT 0x800b0109
 
-
 // supported machine types
 #define ARCH_X64   0x64
 #define ARCH_I386  0x32
+
+#define BUFFER_SIZE 2048
+#define MSG_SIZE 4096
 
 typedef struct _DRIVER_FILE {
 UINT start;

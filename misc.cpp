@@ -8,6 +8,7 @@ extern "C" {
 
 extern SYSTEM_INFORMATION current_system;
 typedef BOOL(WINAPI *LD_ISWOW64PROCESS) (HANDLE, PBOOL);
+typedef DWORD(WINAPI *LD_FORMATMESSAGE) (DWORD, LPCVOID, DWORD, DWORD, LPTSTR, DWORD, va_list);
 
 /*
   This function determines the current installed OS env.
@@ -67,7 +68,6 @@ VOID WINAPI GetCurrentHostSetup(VOID) {
       RegCloseKey(hKey);
     }
   }
-
   // Try tor figure out what the current driver signing policy is.
   // If nothing is available in the registry assume none. 	
   result = RegOpenKeyEx(HKEY_LOCAL_MACHINE,
@@ -236,6 +236,46 @@ VOID WINAPI SyncVolumes(VOID) {
     FlushFileBuffers(hVolume);
     CloseHandle(hVolume);
   }
+}
+
+VOID WINAPI ShowErrorMessage(DWORD dwError, LPSTR msg, LPSTR title) {
+  LD_FORMATMESSAGE fnForrmatMessage = NULL;
+  static char buff[BUFFER_SIZE];
+  TCHAR errormsg[MSG_SIZE];
+
+  ZeroMemory(buff, BUFFER_SIZE);
+
+  if (!fnForrmatMessage) {
+    fnForrmatMessage = (LD_FORMATMESSAGE)GetProcAddress(
+      GetModuleHandle(TEXT("kernel32")),
+      "FormatMessageA");
+    if (fnForrmatMessage) {
+      fnForrmatMessage(FORMAT_MESSAGE_IGNORE_INSERTS |
+        FORMAT_MESSAGE_FROM_SYSTEM |
+        FORMAT_MESSAGE_MAX_WIDTH_MASK,
+        NULL,
+        dwError,
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
+        (LPTSTR)buff,
+        BUFFER_SIZE - 1,
+        NULL);
+    }
+  }
+
+  if (strlen(buff))
+    wsprintf(errormsg,
+      TEXT("%s\n\n%s"),
+      msg,
+      buff);
+  else
+    wsprintf(errormsg,
+      TEXT("%s\n"),
+      msg);
+
+  MessageBox(0,
+    errormsg,
+    title,
+    MB_ICONERROR);
 }
 #ifdef __cplusplus
 }
